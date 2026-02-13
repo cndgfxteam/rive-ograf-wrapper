@@ -53,7 +53,9 @@ class RiveOGrafTemplate extends HTMLElement {
                         this.#riveInstance.resizeDrawingSurfaceToCanvas()
 
                         if (!this.#riveInstance.viewModelInstance) {
-                            throw new Error('ViewModel instance not found.')
+                            return resolve({
+                                statusCode: 500,
+                            })
                         }
 
                         this.#vmi = this.#riveInstance.viewModelInstance
@@ -72,10 +74,7 @@ class RiveOGrafTemplate extends HTMLElement {
             })
         } catch (e) {
             console.error('Error during load:', e)
-            return {
-                statusCode: 500,
-                message: e instanceof Error ? e.message : 'Unknown error',
-            }
+            return { statusCode: 500 }
         }
     }
 
@@ -83,6 +82,8 @@ class RiveOGrafTemplate extends HTMLElement {
         if (this.#riveInstance) {
             this.#canvas.remove()
             this.#riveInstance.cleanup()
+            this.#vmi = undefined
+            this.#riveInstance = undefined
         }
 
         return { statusCode: 200 }
@@ -90,12 +91,16 @@ class RiveOGrafTemplate extends HTMLElement {
 
     async updateAction(params) {
         if (!this.#riveInstance) {
-            return { statusCode: 501, message: 'App not loaded' }
+            return { statusCode: 501 }
         }
 
         try {
             if (!this.#vmi) {
                 throw new Error('ViewModel instance not available.')
+            }
+
+            if (typeof params.data !== 'object' || params.data === null) {
+                throw new Error('Data must be a non-null object.')
             }
 
             for (let key in params.data) {
@@ -138,11 +143,7 @@ class RiveOGrafTemplate extends HTMLElement {
             return { statusCode: 200 }
         } catch (error) {
             console.error('Update action failed:', error)
-            return {
-                statusCode: 500,
-                message:
-                    error instanceof Error ? error.message : 'Unknown error',
-            }
+            return { statusCode: 500 }
         }
     }
 
@@ -151,11 +152,10 @@ class RiveOGrafTemplate extends HTMLElement {
             return {
                 statusCode: 501,
                 currentStep: this.#currentStep,
-                message: 'App not loaded',
             }
         }
 
-        this.#currentStep += params.delta
+        this.#currentStep += params.delta ?? 1
 
         if (!this.#vmi) {
             throw new Error('ViewModel instance not available.')
@@ -181,9 +181,9 @@ class RiveOGrafTemplate extends HTMLElement {
         return { statusCode: 200 }
     }
 
-    async customAction({ id, payload }) {
+    async customAction({ id }) {
         if (!this.#riveInstance) {
-            return { statusCode: 501, message: 'App not loaded' }
+            return { statusCode: 501 }
         }
 
         if (!this.#vmi) {

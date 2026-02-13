@@ -1,7 +1,6 @@
 import { Rive, type ViewModelInstance, type RiveFile } from '@rive-app/webgl2'
-import { GraphicsAPI } from 'ograf'
+import { GraphicsAPI, type ReturnPayload } from 'ograf'
 import type { TriggerMap } from './rive-interpreter'
-import type { GraphicInstanceLoadResponse } from './types/ograf'
 
 class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
     #canvas: HTMLCanvasElement
@@ -32,17 +31,19 @@ class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
 
     connectedCallback() {}
 
-    async load(params: any) {
+    async load(
+        params: Parameters<GraphicsAPI.Graphic['load']>[0],
+    ): ReturnType<GraphicsAPI.Graphic['load']> {
         if (params.renderType !== 'realtime') {
             throw new Error('Non-realtime not supported by this graphic.')
         }
 
         try {
             if (this.#riveInstance) {
-                return this.updateAction(params)
+                return this.updateAction({ data: params.data })
             }
 
-            return new Promise<GraphicInstanceLoadResponse>((resolve) => {
+            return new Promise<ReturnPayload | undefined>((resolve) => {
                 this.#canvas.width = this.#width
                 this.#canvas.height = this.#height
                 this.#canvas.style.outline = '1px solid #fff'
@@ -60,7 +61,6 @@ class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
                         if (!this.#riveInstance!.viewModelInstance) {
                             return resolve({
                                 statusCode: 500,
-                                message: 'ViewModel instance not found.',
                             })
                         }
 
@@ -71,7 +71,9 @@ class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
                         )
 
                         if (params.data) {
-                            return resolve(this.updateAction(params))
+                            return resolve(
+                                this.updateAction({ data: params.data }),
+                            )
                         }
 
                         return resolve({ statusCode: 200 })
@@ -80,15 +82,13 @@ class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
             })
         } catch (e) {
             console.error('Error during load:', e)
-
-            return {
-                statusCode: 500,
-                message: e instanceof Error ? e.message : 'Unknown error',
-            }
+            return { statusCode: 500 }
         }
     }
 
-    async dispose(params: any) {
+    async dispose(
+        _params: Parameters<GraphicsAPI.Graphic['dispose']>[0],
+    ): ReturnType<GraphicsAPI.Graphic['dispose']> {
         if (this.#riveInstance) {
             this.#canvas.remove()
             this.#riveInstance.cleanup()
@@ -99,9 +99,11 @@ class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
         return { statusCode: 200 }
     }
 
-    async updateAction(params: { data: any }) {
+    async updateAction(
+        params: Parameters<GraphicsAPI.Graphic['updateAction']>[0],
+    ): ReturnType<GraphicsAPI.Graphic['updateAction']> {
         if (!this.#riveInstance) {
-            return { statusCode: 501, message: 'App not loaded' }
+            return { statusCode: 501 }
         }
 
         try {
@@ -109,7 +111,13 @@ class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
                 throw new Error('ViewModel instance not available.')
             }
 
-            for (let key in params.data) {
+            if (typeof params.data !== 'object' || params.data === null) {
+                throw new Error('Data must be a non-null object.')
+            }
+
+            const data = params.data as Record<string, unknown>
+
+            for (let key in data) {
                 const type = this.#vmi.properties.find(
                     (p) => p.name === key,
                 )?.type
@@ -121,23 +129,23 @@ class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
                 switch (type) {
                     /* @ts-expect-error - Rive's DataType enum is weird and behaves like a string but types like a number */
                     case 'string':
-                        this.#vmi.string(key)!.value = params.data[key]
+                        this.#vmi.string(key)!.value = data[key] as string
                         break
                     /* @ts-expect-error - Rive's DataType enum is weird and behaves like a string but types like a number */
                     case 'number':
-                        this.#vmi.number(key)!.value = params.data[key]
+                        this.#vmi.number(key)!.value = data[key] as number
                         break
                     /* @ts-expect-error - Rive's DataType enum is weird and behaves like a string but types like a number */
                     case 'boolean':
-                        this.#vmi.boolean(key)!.value = params.data[key]
+                        this.#vmi.boolean(key)!.value = data[key] as boolean
                         break
                     /* @ts-expect-error - Rive's DataType enum is weird and behaves like a string but types like a number */
                     case 'color':
-                        this.#vmi.color(key)!.value = params.data[key]
+                        this.#vmi.color(key)!.value = data[key] as number
                         break
                     /* @ts-expect-error - Rive's DataType enum is weird and behaves like a string but types like a number */
                     case 'enum':
-                        this.#vmi.enum(key)!.value = params.data[key]
+                        this.#vmi.enum(key)!.value = data[key] as string
                         break
                     default:
                         throw new Error(
@@ -149,25 +157,21 @@ class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
             return { statusCode: 200 }
         } catch (error) {
             console.error('Update action failed:', error)
-
-            return {
-                statusCode: 500,
-                message:
-                    error instanceof Error ? error.message : 'Unknown error',
-            }
+            return { statusCode: 500 }
         }
     }
 
-    async playAction(params: any) {
+    async playAction(
+        params: Parameters<GraphicsAPI.Graphic['playAction']>[0],
+    ): ReturnType<GraphicsAPI.Graphic['playAction']> {
         if (!this.#riveInstance) {
             return {
                 statusCode: 501,
                 currentStep: this.#currentStep,
-                message: 'App not loaded',
             }
         }
 
-        this.#currentStep += params.delta
+        this.#currentStep += params.delta ?? 1
 
         if (!this.#vmi) {
             throw new Error('ViewModel instance not available.')
@@ -179,7 +183,9 @@ class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
         return { statusCode: 200, currentStep: this.#currentStep }
     }
 
-    async stopAction(params: any) {
+    async stopAction(
+        _params: Parameters<GraphicsAPI.Graphic['stopAction']>[0],
+    ): ReturnType<GraphicsAPI.Graphic['stopAction']> {
         if (!this.#riveInstance) {
             return { statusCode: 200 }
         }
@@ -193,9 +199,13 @@ class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
         return { statusCode: 200 }
     }
 
-    async customAction({ id, payload }: { id: string; payload: any }) {
+    async customAction({
+        id,
+    }: Parameters<GraphicsAPI.Graphic['customAction']>[0]): ReturnType<
+        GraphicsAPI.Graphic['customAction']
+    > {
         if (!this.#riveInstance) {
-            return { statusCode: 501, message: 'App not loaded' }
+            return { statusCode: 501 }
         }
 
         if (!this.#vmi) {
@@ -207,14 +217,16 @@ class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
         return { statusCode: 200 }
     }
 
-    async goToTime(_payload: any) {
+    async goToTime(
+        _params: Parameters<GraphicsAPI.Graphic['goToTime']>[0],
+    ): ReturnType<GraphicsAPI.Graphic['goToTime']> {
         throw new Error('Non-realtime not supported by this graphic.')
-        return { statusCode: 400 }
     }
 
-    async setActionsSchedule(_payload: any) {
+    async setActionsSchedule(
+        _params: Parameters<GraphicsAPI.Graphic['setActionsSchedule']>[0],
+    ): ReturnType<GraphicsAPI.Graphic['setActionsSchedule']> {
         throw new Error('Non-realtime not supported by this graphic.')
-        return { statusCode: 400 }
     }
 }
 
