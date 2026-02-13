@@ -1,0 +1,20 @@
+{
+    "$schema": "https://ograf.ebu.io/v1/specification/json-schemas/graphics/schema.json",
+    "name": "Rive OGraf Template",
+    "description": "A description would go here",
+    "id": "rive-ograf-template",
+    "main": "RiveOGrafTemplate.mjs",
+    "version": "0",
+    "author": {
+        "name": "Jeff Hobson, CBS News"
+    },
+    "renderRequirements": [
+        {
+            "accessToPublicInternet": { "exact": true }
+        }
+    ],
+    "supportsRealTime": true,
+    "supportsNonRealTime": false,
+    "stepCount": 1,
+    "v_riveConverterVersion": "0.0.0"
+}
