@@ -1,47 +1,30 @@
-# Svelte + TS + Vite
+# rive-ograf-wrapper
 
-This template should help get you started developing with Svelte and TypeScript in Vite.
+Web app written in [Svelte](https://svelte.dev/) that parses a [Rive](https://rive.app/) (`.riv`) file and creates an [OGraf Graphic](https://ograf.ebu.io/) based on its properties and user-submitted info.
 
-## Recommended IDE Setup
+## Usage
 
-[VS Code](https://code.visualstudio.com/) + [Svelte](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode).
+Either grab the latest build from the releases page or install locally and run `pnpm build`. Deploy the bundled web app as a static web app (with GitHub Pages, Heroku, etc.).
 
-## Need an official Svelte framework?
+## Developing
 
-Check out [SvelteKit](https://github.com/sveltejs/kit#readme), which is also powered by Vite. Deploy anywhere with its serverless-first approach and adapt to various platforms, with out of the box support for TypeScript, SCSS, and Less, and easily-added support for mdsvex, GraphQL, PostCSS, Tailwind CSS, and more.
+1. Clone the repo.
+2. `pnpm install`
+3. `pnpm dev`
 
-## Technical considerations
+The `src/lib` folder contains most components and utilities used by the app. The `public` folder contains the template manifest and HTML custom element transformed by the app.
 
-**Why use this over SvelteKit?**
+This project uses [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/). If you're unsure which type to use for a given commit, try using [this flowchart](https://gist.github.com/JohnnyWalkerDigital/7207004e8efd79751dbf55ece0420ef2). If you're still not sure, you probably need to break your changes into smaller commits.
 
-- It brings its own routing solution which might not be preferable for some users.
-- It is first and foremost a framework that just happens to use Vite under the hood, not a Vite app.
+### Deploying
 
-This template contains as little as possible to get started with Vite + TypeScript + Svelte, while taking into account the developer experience with regards to HMR and intellisense. It demonstrates capabilities on par with the other `create-vite` templates and is a good starting point for beginners dipping their toes into a Vite + Svelte project.
+Every push to main is deployed to GitHub Pages via GitHub Actions (WIP).
 
-Should you later need the extended capabilities and extensibility provided by SvelteKit, the template has been structured similarly to SvelteKit so that it is easy to migrate.
+## Roadmap
 
-**Why `global.d.ts` instead of `compilerOptions.types` inside `jsconfig.json` or `tsconfig.json`?**
+Check the GitHub issues for the primary roadmap (WIP), but here are a few key known issues:
 
-Setting `compilerOptions.types` shuts out all other types not explicitly listed in the configuration. Using triple-slash references keeps the default TypeScript setting of accepting type information from the entire workspace, while also adding `svelte` and `vite/client` type information.
-
-**Why include `.vscode/extensions.json`?**
-
-Other templates indirectly recommend extensions via the README, but this file allows VS Code to prompt the user to install the recommended extension upon opening the project.
-
-**Why enable `allowJs` in the TS template?**
-
-While `allowJs: false` would indeed prevent the use of `.js` files in the project, it does not prevent the use of JavaScript syntax in `.svelte` files. In addition, it would force `checkJs: false`, bringing the worst of both worlds: not being able to guarantee the entire codebase is TypeScript, and also having worse typechecking for the existing JavaScript. In addition, there are valid use cases in which a mixed codebase may be relevant.
-
-**Why is HMR not preserving my local component state?**
-
-HMR state preservation comes with a number of gotchas! It has been disabled by default in both `svelte-hmr` and `@sveltejs/vite-plugin-svelte` due to its often surprising behavior. You can read the details [here](https://github.com/rixo/svelte-hmr#svelte-hmr).
-
-If you have state that's important to retain within a component, consider creating an external store which would not be replaced by HMR.
-
-```ts
-// store.ts
-// An extremely simple external store
-import { writable } from 'svelte/store'
-export default writable(0)
-```
+1. The app is not yet fully compliant with v1 of the OGraf Graphics specification. Multi-step and non-real-time graphics are currently unsupported.
+2. The preview step should come before template generation, allowing the user to make additional tweaks after testing the graphic.
+3. The Rive web runtime is not bundled with the final graphic, it is imported dynamically at runtime from a CDN. This means the graphic requires an internet connection and is less performant at load time than it could be.
+4. The graphic template is not generated from a TS file during a build step, nor minified.
