@@ -8,4 +8,5 @@ export default defineConfig({
         __MANIFEST_VERSION_KEY__: "'v_riveConverterVersion'",
         __VERSION__: JSON.stringify(process.env.npm_package_version),
     },
+    base: '/rive-ograf-wrapper/',
 })
