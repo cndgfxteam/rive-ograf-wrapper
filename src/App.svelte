@@ -112,11 +112,16 @@
     <FileUploader accept=".riv" onFile={handleRivFile} />
 
     {#if hasLoaded}
-        <div class="card">
+        <div class="card actions">
+            <p class="label label-big">Preview Controls</p>
             {#each Object.entries(actionsToTriggersMap) as [action, trigger] (action)}
                 {#if action === 'customActions'}
-                    <div>
-                        <p>Custom actions</p>
+                    <div class="custom-actions">
+                        <p class="label">Custom actions</p>
+                        {#if !trigger || !Array.isArray(trigger) || trigger.length === 0}
+                            <p>None</p>
+                        {/if}
+
                         {#each trigger as customTrigger}
                             <button
                                 onclick={() => {
@@ -189,14 +194,21 @@
     button {
         color: white;
     }
+
+    .label {
+        font-weight: 500;
+        text-transform: uppercase;
+
+        &.label-big {
+            font-size: 1.25em;
+        }
+    }
+
     .card {
         margin: 2em 0;
         text-align: left;
 
         > .label {
-            font-weight: bold;
-            text-transform: uppercase;
-
             & + p[data-status='error'] {
                 color: #ff4d4f;
             }
@@ -214,6 +226,22 @@
                 content: '|';
                 margin: 0 1em 0 0;
             }
+        }
+    }
+
+    .actions {
+        background-color: oklch(from currentColor l c h / 0.1);
+        margin-block: 1em;
+        padding: 1em;
+        border-radius: 0.25em;
+
+        > .label-big {
+            font-weight: 700;
+            margin-top: 0;
+        }
+
+        button {
+            margin-right: 0.25em;
         }
     }
 </style>
