@@ -1,16 +1,20 @@
 <script lang="ts">
-    import { type ViewModelProperty } from "@rive-app/webgl2/rive_advanced.mjs"
-    import FileUploader from "./lib/FileUploader.svelte"
-    import RiveInterpreter, { type TriggerMap } from "./lib/rive-interpreter"
-    import RiveOGrafTemplate from "./lib/RiveOGrafTemplate"
-    
+    import { type ViewModelProperty } from '@rive-app/webgl2/rive_advanced.mjs'
+    import FileUploader from './lib/FileUploader.svelte'
+    import RiveInterpreter, { type TriggerMap } from './lib/rive-interpreter'
+    import RiveOGrafTemplate from './lib/RiveOGrafTemplate'
+    import type { GraphicsManifest } from 'ograf'
+
     let status = $state('No file uploaded')
-    let statusType = $state<'error'|'success'|'warn'|'info'>('error')
+    let statusType = $state<'error' | 'success' | 'warn' | 'info'>('error')
     let riveProps = $state<ViewModelProperty[]>([])
-    let interpreter: RiveInterpreter|undefined = $state()
-    let template: RiveOGrafTemplate|undefined = $state()
+    let interpreter: RiveInterpreter | undefined = $state()
+    let manifest: GraphicsManifest | undefined = $state()
+    let template: RiveOGrafTemplate | undefined = $state()
     let hasLoaded = $state(false)
-    let triggersToActionsMap = $state<{ [key: string]: 'playAction' | 'stopAction' | 'customAction' }>({})
+    let triggersToActionsMap = $state<{
+        [key: string]: 'playAction' | 'stopAction' | 'customAction'
+    }>({})
 
     async function handleRivFile(file: File) {
         if (!file.name.endsWith('.riv')) {
@@ -25,9 +29,24 @@
             buffer: await file.arrayBuffer(),
             onFileLoad: async (file) => {
                 riveProps = await interpreter!.parseProperties()
+                triggersToActionsMap = riveProps.reduce(
+                    (map, prop) => {
+                        // @ts-expect-error - Rive DataType is messed up and doesn't recognize 'trigger' as a valid type
+                        if (prop.type === 'trigger') {
+                            map[prop.name] = 'customAction'
+                        }
+                        return map
+                    },
+                    {} as {
+                        [key: string]:
+                            | 'playAction'
+                            | 'stopAction'
+                            | 'customAction'
+                    },
+                )
                 status = 'ViewModel properties parsed'
                 statusType = 'success'
-            }
+            },
         })
     }
 
@@ -46,24 +65,36 @@
         return trigger
     }
 
-    const onSubmit = async () => {
+    const actionsToTriggersMap: TriggerMap = $derived({
+        playAction: getTriggerForAction('playAction'),
+        stopAction: getTriggerForAction('stopAction'),
+        customActions: Object.entries(triggersToActionsMap)
+            .filter(([_, action]) => action === 'customAction')
+            .map(([trigger, _]) => trigger),
+    })
+
+    const previewOGraf = async () => {
         if (statusType !== 'success' || !interpreter) {
             alert('Please upload a valid .riv file first.')
             return
         }
 
-        const actionsToTriggersMap: TriggerMap = {
-            playAction: getTriggerForAction('playAction'),
-            stopAction: getTriggerForAction('stopAction'),
-        }
-
-        const manifest = await interpreter.createManifest(actionsToTriggersMap)
         template = interpreter.createTestTemplate(actionsToTriggersMap)
         document.querySelector('.drop-zone')?.replaceWith(template)
-        template.load({renderType: 'realtime'})
+        template.load({
+            renderType: 'realtime',
+            renderCharacteristics: { accessToPublicInternet: true },
+        })
         hasLoaded = true
-        
+    }
+
+    const createOGraf = async () => {
+        if (!interpreter) {
+            return
+        }
+
         try {
+            manifest = await interpreter.createManifest(actionsToTriggersMap)
             await interpreter.createOGrafPackage(manifest, actionsToTriggersMap)
             status = 'OGraf package created! Download initiated.'
             statusType = 'success'
@@ -73,52 +104,85 @@
             statusType = 'error'
         }
     }
-
-    const triggerIn = () => {
-        template?.playAction({delta: 1})
-    }
-
-    const triggerOut = () => {
-        template?.stopAction({})
-    }
 </script>
 
 <main>
-  <h1>Rive OGraf Wrapper</h1>
+    <h1>Rive OGraf Wrapper</h1>
 
-  <FileUploader accept=".riv" onFile={handleRivFile} />
+    <FileUploader accept=".riv" onFile={handleRivFile} />
 
-  <div class="card">
-    <span class="label">Status</span>
-    <p data-status={statusType}>{status}</p>
-  </div>
+    {#if hasLoaded}
+        <div class="card">
+            {#each Object.entries(actionsToTriggersMap) as [action, trigger] (action)}
+                {#if action === 'customActions'}
+                    <div>
+                        <p>Custom actions</p>
+                        {#each trigger as customTrigger}
+                            <button
+                                onclick={() => {
+                                    template?.customAction({
+                                        id: customTrigger,
+                                        payload: {},
+                                    })
+                                }}>{customTrigger.toUpperCase()}</button
+                            >
+                        {/each}
+                    </div>
+                {:else}
+                    <button
+                        onclick={() => {
+                            template?.[action as 'playAction' | 'stopAction'](
+                                {},
+                            )
+                        }}>{action.replace('Action', '').toUpperCase()}</button
+                    >
+                {/if}
+            {/each}
+        </div>
+    {/if}
 
-  {#if riveProps.length}
     <div class="card">
-      <span class="label">Rive ViewModel Properties</span>
-      <ul>
-        {#each riveProps as prop (prop.name)}
-          <li>{prop.name} ({prop.type})
-            {#if prop.type === 'trigger' as any}
-                <select name="assign_{prop.name}" onchange={(e) => triggersToActionsMap[prop.name] = e.currentTarget.value as 'playAction' | 'stopAction' | 'customAction'}>
-                    <option value="playAction">playAction</option>
-                    <option value="stopAction">stopAction</option>
-                    <option value="customAction" selected>customAction</option>
-                </select>
-            {/if}
-          </li>
-        {/each}
-      </ul>
+        <span class="label">Status</span>
+        <p data-status={statusType}>{status}</p>
     </div>
 
-    <button onclick={onSubmit}>LGTM!</button>
-  {/if}
-  {#if hasLoaded}
-    <div class="card">
-        <button onclick={triggerIn}>IN</button>
-        <button onclick={triggerOut}>OUT</button>
-    </div>
-  {/if}
+    {#if riveProps.length}
+        <div class="card">
+            <span class="label">Rive ViewModel Properties</span>
+            <ul>
+                {#each riveProps as prop (prop.name)}
+                    <li>
+                        {prop.name} ({prop.type})
+                        {#if prop.type === ('trigger' as any)}
+                            <select
+                                name="assign_{prop.name}"
+                                onchange={(e) =>
+                                    (triggersToActionsMap[prop.name] = e
+                                        .currentTarget.value as
+                                        | 'playAction'
+                                        | 'stopAction'
+                                        | 'customAction')}
+                            >
+                                <option value="playAction">playAction</option>
+                                <option value="stopAction">stopAction</option>
+                                <option value="customAction" selected
+                                    >customAction</option
+                                >
+                            </select>
+                        {/if}
+                    </li>
+                {/each}
+            </ul>
+        </div>
+
+        {#if !hasLoaded}
+            <button onclick={previewOGraf}>Preview</button>
+        {/if}
+    {/if}
+
+    {#if hasLoaded}
+        <button onclick={createOGraf}>LGTM!</button>
+    {/if}
 </main>
 
 <style>
@@ -133,21 +197,21 @@
             font-weight: bold;
             text-transform: uppercase;
 
-            & + p[data-status="error"] {
+            & + p[data-status='error'] {
                 color: #ff4d4f;
             }
-            & + p[data-status="success"] {
+            & + p[data-status='success'] {
                 color: #52c41a;
             }
-            & + p[data-status="warn"] {
+            & + p[data-status='warn'] {
                 color: #faad14;
             }
-            & + p[data-status="info"] {
+            & + p[data-status='info'] {
                 color: #1890ff;
             }
 
             & + p:before {
-                content: "|";
+                content: '|';
                 margin: 0 1em 0 0;
             }
         }

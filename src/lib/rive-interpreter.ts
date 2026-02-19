@@ -14,6 +14,7 @@ type RiveInterpreterOptions = (
 export interface TriggerMap {
     playAction: string
     stopAction: string
+    customActions: string[]
 }
 
 export default class RiveInterpreter {
