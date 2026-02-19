@@ -1,13 +1,10 @@
 {
     "$schema": "https://ograf.ebu.io/v1/specification/json-schemas/graphics/schema.json",
     "name": "Rive OGraf Template",
-    "description": "A description would go here",
+    "description": "OGraf Graphic containing a Rive state machine.",
     "id": "rive-ograf-template",
     "main": "RiveOGrafTemplate.mjs",
     "version": "0",
-    "author": {
-        "name": "Jeff Hobson, CBS News"
-    },
     "renderRequirements": [
         {
             "accessToPublicInternet": { "exact": true }

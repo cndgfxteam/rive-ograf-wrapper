@@ -14,6 +14,7 @@ type RiveInterpreterOptions = (
 export interface TriggerMap {
     playAction: string
     stopAction: string
+    customActions: string[]
 }
 
 export default class RiveInterpreter {
@@ -102,7 +103,21 @@ export default class RiveInterpreter {
         })
     }
 
-    async createManifest(triggerMap: TriggerMap): Promise<GraphicsManifest> {
+    async createManifest(
+        triggerMap: TriggerMap,
+        propertyDefaults: { [key: string]: string | number } = {},
+        metadata: {
+            name: string
+            description?: string
+            id: string
+            author: {
+                name: string
+                email?: string
+                url?: string
+            }
+            stepCount: number
+        },
+    ): Promise<GraphicsManifest> {
         try {
             const template: GraphicsManifest = await (
                 await fetch('./manifest.ograf.json')
@@ -115,9 +130,11 @@ export default class RiveInterpreter {
                 )
             }
 
-            template.customActions = []
-            template[__MANIFEST_VERSION_KEY__] = __VERSION__
-            template.schema = {
+            const manifest: GraphicsManifest = { ...template, ...metadata }
+
+            manifest.customActions = []
+            manifest[__MANIFEST_VERSION_KEY__] = __VERSION__
+            manifest.schema = {
                 type: 'object',
                 properties: {},
             }
@@ -132,7 +149,7 @@ export default class RiveInterpreter {
 
                 /* @ts-expect-error - Rive's DataType enum is weird and behaves like a string but types like a number */
                 if (prop.type === 'trigger') {
-                    template.customActions!.push({
+                    manifest.customActions!.push({
                         id: prop.name,
                         name: prop.name,
                         description: `Auto-generated custom action for ${prop.name}`,
@@ -140,20 +157,27 @@ export default class RiveInterpreter {
                     return
                 }
 
-                template.schema!.properties![prop.name] = {
+                manifest.schema!.properties![prop.name] = {
                     type: prop.type,
                     title: prop.name,
                     description: `Auto-generated property for ${prop.name}`,
+                    ...(propertyDefaults[prop.name] !== undefined &&
+                        propertyDefaults[prop.name] !== '' && {
+                            default: propertyDefaults[prop.name],
+                        }),
                 }
             })
 
-            return template
+            return manifest
         } catch (e) {
             throw new Error(`Failed to create manifest: ${e}`)
         }
     }
 
-    createTestTemplate(triggerMap: TriggerMap): RiveOGrafTemplate {
+    createTestTemplate(
+        triggerMap: TriggerMap,
+        propertyDefaults: { [key: string]: string | number } = {},
+    ): RiveOGrafTemplate {
         if (!this.#riveFile) {
             throw new Error('Rive file not loaded yet.')
         }
@@ -167,6 +191,7 @@ export default class RiveInterpreter {
             this.#artboardWidth,
             this.#artboardHeight,
             triggerMap,
+            propertyDefaults,
         )
     }
 

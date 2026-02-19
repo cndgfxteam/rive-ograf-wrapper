@@ -25,6 +25,5 @@ Every push to main is deployed to GitHub Pages via GitHub Actions (WIP).
 Check the GitHub issues for the primary roadmap (WIP), but here are a few key known issues:
 
 1. The app is not yet fully compliant with v1 of the OGraf Graphics specification. Multi-step and non-real-time graphics are currently unsupported.
-2. The preview step should come before template generation, allowing the user to make additional tweaks after testing the graphic.
-3. The Rive web runtime is not bundled with the final graphic, it is imported dynamically at runtime from a CDN. This means the graphic requires an internet connection and is less performant at load time than it could be.
-4. The graphic template is not generated from a TS file during a build step, nor minified.
+2. The Rive web runtime is not bundled with the final graphic, it is imported dynamically at runtime from a CDN. This means the graphic requires an internet connection and is less performant at load time than it could be.
+3. The graphic template is not generated from a TS file during a build step, nor minified.
