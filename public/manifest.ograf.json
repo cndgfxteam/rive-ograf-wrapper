@@ -5,9 +5,6 @@
     "id": "rive-ograf-template",
     "main": "RiveOGrafTemplate.mjs",
     "version": "0",
-    "author": {
-        "name": "Jeff Hobson, CBS News"
-    },
     "renderRequirements": [
         {
             "accessToPublicInternet": { "exact": true }

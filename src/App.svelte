@@ -15,7 +15,12 @@
     let triggersToActionsMap = $state<{
         [key: string]: 'playAction' | 'stopAction' | 'customAction'
     }>({})
-    let propertyDefaults = $state<{ [key: string]: string | number }>({})
+
+    const defaultStepCount = $derived(
+        riveProps.find((prop) => prop.name === 'stepCount')
+            ? riveProps.find((prop) => prop.name === 'stepCount')
+            : 1,
+    )
 
     async function handleRivFile(file: File) {
         if (!file.name.endsWith('.riv')) {
@@ -76,12 +81,32 @@
             .map(([trigger, _]) => trigger),
     })
 
-    const previewOGraf = async () => {
+    const extractPropertyDefaults = (formData: FormData) => {
+        const propertyDefaults: { [key: string]: string | number } = {}
+
+        riveProps.forEach((prop) => {
+            // @ts-expect-error - Rive DataType is messed up and doesn't recognize 'trigger' as a valid type
+            if (prop.type === 'trigger') {
+                return
+            }
+
+            const value = formData.get(`property-${prop.name}`) as string
+            if (value && value.trim() !== '') {
+                propertyDefaults[prop.name] =
+                    (prop.type as any) === 'number' ? Number(value) : value
+            }
+        })
+
+        return propertyDefaults
+    }
+
+    const previewOGraf = async (formData: FormData) => {
         if (statusType !== 'success' || !interpreter) {
             alert('Please upload a valid .riv file first.')
             return
         }
 
+        const propertyDefaults = extractPropertyDefaults(formData)
         template = interpreter.createTestTemplate(
             actionsToTriggersMap,
             propertyDefaults,
@@ -94,15 +119,34 @@
         hasLoaded = true
     }
 
-    const createOGraf = async () => {
+    const createOGraf = async (formData: FormData) => {
         if (!interpreter) {
             return
         }
 
         try {
+            const authorName = formData.get('manifest-author-name') as string
+            const authorEmail = formData.get('manifest-author-email') as string
+            const authorUrl = formData.get('manifest-author-url') as string
+
+            const propertyDefaults = extractPropertyDefaults(formData)
+
+            const metadata = {
+                name: formData.get('manifest-name') as string,
+                description: formData.get('manifest-description') as string,
+                id: formData.get('manifest-id') as string,
+                author: {
+                    name: authorName,
+                    ...(authorEmail && { email: authorEmail }),
+                    ...(authorUrl && { url: authorUrl }),
+                },
+                stepCount: Number(formData.get('manifest-stepcount')) || 1,
+            }
+
             manifest = await interpreter.createManifest(
                 actionsToTriggersMap,
                 propertyDefaults,
+                metadata,
             )
             await interpreter.createOGrafPackage(manifest, actionsToTriggersMap)
             status = 'OGraf package created! Download initiated.'
@@ -170,15 +214,16 @@
         <form
             onsubmit={(e) => {
                 e.preventDefault()
+                const formData = new FormData(e.currentTarget)
 
                 // TODO: Form validation
 
                 if (!hasLoaded) {
-                    previewOGraf()
+                    previewOGraf(formData)
                     return
                 }
 
-                createOGraf()
+                createOGraf(formData)
             }}
         >
             <div class="card">
@@ -227,25 +272,125 @@
                                             'number'
                                                 ? 'number'
                                                 : 'text'}
-                                            name="assign_${prop.name}"
+                                            name="property-{prop.name}"
                                             placeholder={prop.type as any}
-                                            bind:value={
-                                                propertyDefaults[prop.name]
-                                            }
-                                            oninput={(e) => {
-                                                const value =
-                                                    e.currentTarget.value
-                                                propertyDefaults[prop.name] =
-                                                    (prop.type as any) ===
-                                                        'number' && value !== ''
-                                                        ? Number(value)
-                                                        : value
-                                            }}
                                         />
                                     </td>
                                 {/if}
                             </tr>
                         {/each}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <span class="label">Graphic Metadata</span>
+                <table class="metadata-form">
+                    <tbody>
+                        <tr>
+                            <td><label for="manifest-name">Name</label></td>
+                            <td
+                                ><input
+                                    type="text"
+                                    id="manifest-name"
+                                    name="manifest-name"
+                                    placeholder="Graphic name"
+                                    required
+                                /></td
+                            >
+                        </tr>
+                        <tr>
+                            <td
+                                ><label for="manifest-description"
+                                    >Description</label
+                                ></td
+                            >
+                            <td
+                                ><textarea
+                                    id="manifest-description"
+                                    name="manifest-description"
+                                    placeholder="Brief description (optional)"
+                                    >OGraf Graphic containing a Rive state
+                                    machine.</textarea
+                                ></td
+                            >
+                        </tr>
+                        <tr>
+                            <td><label for="manifest-id">ID</label></td>
+                            <td
+                                ><input
+                                    type="text"
+                                    id="manifest-id"
+                                    name="manifest-id"
+                                    placeholder="Unique identifier for this graphic"
+                                    value="rive-ograf-template"
+                                    required
+                                /></td
+                            >
+                        </tr>
+                        <tr>
+                            <td
+                                ><label for="manifest-author-name"
+                                    >Author name</label
+                                ></td
+                            >
+                            <td
+                                ><input
+                                    type="text"
+                                    id="manifest-author-name"
+                                    name="manifest-author-name"
+                                    placeholder="Author name"
+                                    required
+                                /></td
+                            >
+                        </tr>
+                        <tr>
+                            <td
+                                ><label for="manifest-author-email"
+                                    >Author email</label
+                                ></td
+                            >
+                            <td
+                                ><input
+                                    type="email"
+                                    id="manifest-author-email"
+                                    name="manifest-author-email"
+                                    placeholder="author@example.com"
+                                /></td
+                            >
+                        </tr>
+                        <tr>
+                            <td
+                                ><label for="manifest-author-url"
+                                    >Author website</label
+                                ></td
+                            >
+                            <td
+                                ><input
+                                    type="url"
+                                    id="manifest-author-url"
+                                    name="manifest-author-url"
+                                    placeholder="https://example.com"
+                                /></td
+                            >
+                        </tr>
+                        <tr>
+                            <td
+                                ><label for="manifest-stepcount"
+                                    >Step count</label
+                                ></td
+                            >
+                            <td
+                                ><input
+                                    type="number"
+                                    id="manifest-stepcount"
+                                    name="manifest-stepcount"
+                                    min="0"
+                                    value={defaultStepCount}
+                                    required
+                                /></td
+                            >
+                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -331,7 +476,7 @@
         }
     }
 
-    table.property-list {
+    table {
         margin-top: 1em;
         width: 100%;
         border-collapse: collapse;
@@ -346,7 +491,7 @@
             }
 
             &:last-child {
-                width: 120px;
+                width: 180px;
             }
         }
 
@@ -355,12 +500,29 @@
             border-bottom: 1px solid oklch(from currentColor l c h / 0.2);
         }
 
-        tbody {
-            font-family: monospace;
+        tbody tr:nth-child(odd) {
+            background-color: oklch(from currentColor l c h / 0.05);
+        }
+    }
 
-            tr:nth-child(odd) {
-                background-color: oklch(from currentColor l c h / 0.05);
-            }
+    table.property-list tbody {
+        font-family: monospace;
+    }
+
+    input,
+    textarea,
+    select {
+        width: 100%;
+        padding: 0.25em;
+        border: 1px solid oklch(from currentColor l c h / 0.2);
+        border-radius: 0.25em;
+        background: oklch(from currentColor 0.95 c h);
+    }
+
+    tr:has(input[required]) label {
+        &::after {
+            content: '*';
+            margin-left: 0.25em;
         }
     }
 </style>
