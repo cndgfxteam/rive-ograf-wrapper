@@ -15,6 +15,7 @@
     let triggersToActionsMap = $state<{
         [key: string]: 'playAction' | 'stopAction' | 'customAction'
     }>({})
+    let propertyDefaults = $state<{ [key: string]: string | number }>({})
 
     async function handleRivFile(file: File) {
         if (!file.name.endsWith('.riv')) {
@@ -58,7 +59,9 @@
         )
 
         if (!trigger) {
-            alert(`Please assign a trigger to ${action} before submitting.`)
+            alert(
+                "You must have exactly one trigger assigned to 'playAction' and 'stopAction'.",
+            )
             throw new Error(`No trigger assigned to ${action}`)
         }
 
@@ -79,8 +82,11 @@
             return
         }
 
-        template = interpreter.createTestTemplate(actionsToTriggersMap)
-        document.querySelector('.drop-zone')?.replaceWith(template)
+        template = interpreter.createTestTemplate(
+            actionsToTriggersMap,
+            propertyDefaults,
+        )
+        document.querySelector('#preview-container')?.replaceWith(template)
         template.load({
             renderType: 'realtime',
             renderCharacteristics: { accessToPublicInternet: true },
@@ -94,7 +100,10 @@
         }
 
         try {
-            manifest = await interpreter.createManifest(actionsToTriggersMap)
+            manifest = await interpreter.createManifest(
+                actionsToTriggersMap,
+                propertyDefaults,
+            )
             await interpreter.createOGrafPackage(manifest, actionsToTriggersMap)
             status = 'OGraf package created! Download initiated.'
             statusType = 'success'
@@ -109,7 +118,13 @@
 <main>
     <h1>Rive OGraf Wrapper</h1>
 
-    <FileUploader accept=".riv" onFile={handleRivFile} />
+    <div id="preview-container">
+        {#if !riveProps.length}
+            <FileUploader accept=".riv" onFile={handleRivFile} />
+        {:else}
+            <p class="preview-cover">Assign file properties below</p>
+        {/if}
+    </div>
 
     {#if hasLoaded}
         <div class="card actions">
@@ -152,41 +167,91 @@
     </div>
 
     {#if riveProps.length}
-        <div class="card">
-            <span class="label">Rive ViewModel Properties</span>
-            <ul>
-                {#each riveProps as prop (prop.name)}
-                    <li>
-                        {prop.name} ({prop.type})
-                        {#if prop.type === ('trigger' as any)}
-                            <select
-                                name="assign_{prop.name}"
-                                onchange={(e) =>
-                                    (triggersToActionsMap[prop.name] = e
-                                        .currentTarget.value as
-                                        | 'playAction'
-                                        | 'stopAction'
-                                        | 'customAction')}
-                            >
-                                <option value="playAction">playAction</option>
-                                <option value="stopAction">stopAction</option>
-                                <option value="customAction" selected
-                                    >customAction</option
-                                >
-                            </select>
-                        {/if}
-                    </li>
-                {/each}
-            </ul>
-        </div>
+        <form
+            onsubmit={(e) => {
+                e.preventDefault()
 
-        {#if !hasLoaded}
-            <button onclick={previewOGraf}>Preview</button>
-        {/if}
-    {/if}
+                // TODO: Form validation
 
-    {#if hasLoaded}
-        <button onclick={createOGraf}>LGTM!</button>
+                if (!hasLoaded) {
+                    previewOGraf()
+                    return
+                }
+
+                createOGraf()
+            }}
+        >
+            <div class="card">
+                <span class="label">Rive ViewModel Properties</span>
+                <table class="property-list">
+                    <thead>
+                        <tr>
+                            <th>Property name</th>
+                            <th>Default value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {#each riveProps as prop (prop.name)}
+                            <tr>
+                                <td>{prop.name}</td>
+                                <!-- We need the "any" here because of the Rive DataType issue and not being able to use @ts-expect-error here -->
+                                {#if prop.type === ('trigger' as any)}
+                                    <td>
+                                        <select
+                                            name="assign_{prop.name}"
+                                            onchange={(e) =>
+                                                (triggersToActionsMap[
+                                                    prop.name
+                                                ] = e.currentTarget.value as
+                                                    | 'playAction'
+                                                    | 'stopAction'
+                                                    | 'customAction')}
+                                        >
+                                            <option value="playAction"
+                                                >playAction</option
+                                            >
+                                            <option value="stopAction"
+                                                >stopAction</option
+                                            >
+                                            <option
+                                                value="customAction"
+                                                selected>customAction</option
+                                            >
+                                        </select>
+                                    </td>
+                                {:else}
+                                    <td>
+                                        <!-- We need the "any"s here because of the Rive DataType issue and not being able to use @ts-expect-error here -->
+                                        <input
+                                            type={(prop.type as any) ===
+                                            'number'
+                                                ? 'number'
+                                                : 'text'}
+                                            name="assign_${prop.name}"
+                                            placeholder={prop.type as any}
+                                            bind:value={
+                                                propertyDefaults[prop.name]
+                                            }
+                                            oninput={(e) => {
+                                                const value =
+                                                    e.currentTarget.value
+                                                propertyDefaults[prop.name] =
+                                                    (prop.type as any) ===
+                                                        'number' && value !== ''
+                                                        ? Number(value)
+                                                        : value
+                                            }}
+                                        />
+                                    </td>
+                                {/if}
+                            </tr>
+                        {/each}
+                    </tbody>
+                </table>
+            </div>
+
+            <button type="submit">{hasLoaded ? 'LGTM!' : 'Preview'}</button>
+        </form>
     {/if}
 </main>
 
@@ -229,6 +294,27 @@
         }
     }
 
+    .preview-cover {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: repeating-linear-gradient(
+            -45deg,
+            transparent,
+            transparent 8px,
+            oklch(from currentColor l c h / 0.05) 8px,
+            oklch(from currentColor l c h / 0.05) 16px
+        );
+        width: 500px;
+        max-width: 100%;
+        height: 200px;
+        text-align: center;
+        font-weight: 500;
+        color: oklch(from currentColor l c h / 0.8);
+        border: 1px solid oklch(from currentColor l c h / 0.1);
+        margin: 0;
+    }
+
     .actions {
         background-color: oklch(from currentColor l c h / 0.1);
         margin-block: 1em;
@@ -242,6 +328,39 @@
 
         button {
             margin-right: 0.25em;
+        }
+    }
+
+    table.property-list {
+        margin-top: 1em;
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.75rem;
+
+        td,
+        th {
+            padding: 0.25em 0.75em;
+
+            &:first-child {
+                min-width: 50%;
+            }
+
+            &:last-child {
+                width: 120px;
+            }
+        }
+
+        thead th {
+            background-color: oklch(from currentColor l c h / 0.1);
+            border-bottom: 1px solid oklch(from currentColor l c h / 0.2);
+        }
+
+        tbody {
+            font-family: monospace;
+
+            tr:nth-child(odd) {
+                background-color: oklch(from currentColor l c h / 0.05);
+            }
         }
     }
 </style>

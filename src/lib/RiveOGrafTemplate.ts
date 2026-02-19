@@ -12,12 +12,14 @@ class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
     #vmi: ViewModelInstance | undefined
     #playActionTrigger: string
     #stopActionTrigger: string
+    #propertyDefaults: { [key: string]: string | number }
 
     constructor(
         riveFile: RiveFile,
         width: number,
         height: number,
         triggerMap: TriggerMap,
+        propertyDefaults: { [key: string]: string | number } = {},
     ) {
         super()
         this.attachShadow({ mode: 'open' })
@@ -27,9 +29,57 @@ class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
         this.#riveFile = riveFile
         this.#playActionTrigger = triggerMap.playAction
         this.#stopActionTrigger = triggerMap.stopAction
+        this.#propertyDefaults = propertyDefaults
     }
 
     connectedCallback() {}
+
+    #applyDefaults() {
+        if (!this.#vmi || !this.#propertyDefaults) {
+            return
+        }
+
+        for (const [key, value] of Object.entries(this.#propertyDefaults)) {
+            if (value === undefined || value === '') {
+                continue
+            }
+
+            const property = this.#vmi.properties.find((p) => p.name === key)
+            if (!property) {
+                continue
+            }
+
+            try {
+                switch (property.type) {
+                    /* @ts-expect-error - Rive's DataType enum is weird and behaves like a string but types like a number */
+                    case 'string':
+                        this.#vmi.string(key)!.value = value as string
+                        break
+                    /* @ts-expect-error - Rive's DataType enum is weird and behaves like a string but types like a number */
+                    case 'number':
+                        this.#vmi.number(key)!.value = value as number
+                        break
+                    /* @ts-expect-error - Rive's DataType enum is weird and behaves like a string but types like a number */
+                    case 'boolean':
+                        this.#vmi.boolean(key)!.value = !!value
+                        break
+                    /* @ts-expect-error - Rive's DataType enum is weird and behaves like a string but types like a number */
+                    case 'color':
+                        this.#vmi.color(key)!.value = value as number
+                        break
+                    /* @ts-expect-error - Rive's DataType enum is weird and behaves like a string but types like a number */
+                    case 'enum':
+                        this.#vmi.enum(key)!.value = value as string
+                        break
+                }
+            } catch (error) {
+                console.warn(
+                    `Failed to apply default value for property ${key}:`,
+                    error,
+                )
+            }
+        }
+    }
 
     async load(
         params: Parameters<GraphicsAPI.Graphic['load']>[0],
@@ -69,6 +119,8 @@ class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
                             '%c☑️ Rive loaded.',
                             'color: #8368cb; font-weight: bold;',
                         )
+
+                        this.#applyDefaults()
 
                         if (params.data) {
                             return resolve(

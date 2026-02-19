@@ -103,7 +103,10 @@ export default class RiveInterpreter {
         })
     }
 
-    async createManifest(triggerMap: TriggerMap): Promise<GraphicsManifest> {
+    async createManifest(
+        triggerMap: TriggerMap,
+        propertyDefaults: { [key: string]: string | number } = {},
+    ): Promise<GraphicsManifest> {
         try {
             const template: GraphicsManifest = await (
                 await fetch('./manifest.ograf.json')
@@ -145,6 +148,10 @@ export default class RiveInterpreter {
                     type: prop.type,
                     title: prop.name,
                     description: `Auto-generated property for ${prop.name}`,
+                    ...(propertyDefaults[prop.name] !== undefined &&
+                        propertyDefaults[prop.name] !== '' && {
+                            default: propertyDefaults[prop.name],
+                        }),
                 }
             })
 
@@ -154,7 +161,10 @@ export default class RiveInterpreter {
         }
     }
 
-    createTestTemplate(triggerMap: TriggerMap): RiveOGrafTemplate {
+    createTestTemplate(
+        triggerMap: TriggerMap,
+        propertyDefaults: { [key: string]: string | number } = {},
+    ): RiveOGrafTemplate {
         if (!this.#riveFile) {
             throw new Error('Rive file not loaded yet.')
         }
@@ -168,6 +178,7 @@ export default class RiveInterpreter {
             this.#artboardWidth,
             this.#artboardHeight,
             triggerMap,
+            propertyDefaults,
         )
     }
 
