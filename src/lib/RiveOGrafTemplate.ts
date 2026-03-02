@@ -1,6 +1,6 @@
 import { Rive, type ViewModelInstance, type RiveFile } from '@rive-app/webgl2'
 import { GraphicsAPI, type ReturnPayload } from 'ograf'
-import type { TriggerMap } from './rive-interpreter'
+import type { NestableRecord, TriggerMap } from './rive-interpreter'
 
 class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
     #canvas: HTMLCanvasElement
@@ -12,14 +12,14 @@ class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
     #vmi: ViewModelInstance | undefined
     #playActionTrigger: string
     #stopActionTrigger: string
-    #propertyDefaults: { [key: string]: string | number }
+    #propertyDefaults: NestableRecord
 
     constructor(
         riveFile: RiveFile,
         width: number,
         height: number,
         triggerMap: TriggerMap,
-        propertyDefaults: { [key: string]: string | number } = {},
+        propertyDefaults: NestableRecord = {},
     ) {
         super()
         this.attachShadow({ mode: 'open' })
@@ -51,6 +51,11 @@ class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
 
             try {
                 switch (property.type) {
+                    /* @ts-expect-error - Rive's DataType enum is weird and behaves like a string but types like a number */
+                    case 'list':
+                        const list = this.#vmi.list(key)
+                        // TODO: We need a way to know what the view model for the list is that also works within the built template
+                        break
                     /* @ts-expect-error - Rive's DataType enum is weird and behaves like a string but types like a number */
                     case 'string':
                         this.#vmi.string(key)!.value = value as string
