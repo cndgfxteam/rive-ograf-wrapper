@@ -112,11 +112,17 @@
             propertyDefaults,
         )
         document.querySelector('#preview-container')?.replaceWith(template)
-        template.load({
+
+        await template.load({
             renderType: 'realtime',
             renderCharacteristics: { accessToPublicInternet: true },
         })
+
         hasLoaded = true
+        scrollTo({
+            top: 0,
+            behavior: 'smooth',
+        })
     }
 
     const createOGraf = async (formData: FormData) => {
