@@ -5,6 +5,9 @@
     import RiveOGrafTemplate from './lib/RiveOGrafTemplate'
     import type { GraphicsManifest } from 'ograf'
 
+    const DEFAULT_DESCRIPTION =
+        'OGraf Graphic containing a Rive state machine. Generated using the Rive OGraf Wrapper tool.'
+
     let status = $state('No file uploaded')
     let statusType = $state<'error' | 'success' | 'warn' | 'info'>('error')
     let riveProps = $state<ViewModelProperty[]>([])
@@ -316,8 +319,7 @@
                                     id="manifest-description"
                                     name="manifest-description"
                                     placeholder="Brief description (optional)"
-                                    >OGraf Graphic containing a Rive state
-                                    machine.</textarea
+                                    rows="5">{DEFAULT_DESCRIPTION}</textarea
                                 ></td
                             >
                         </tr>
