@@ -150,6 +150,9 @@
                     ...(authorUrl && { url: authorUrl }),
                 },
                 stepCount: Number(formData.get('manifest-stepcount')) || 1,
+                v_erizos: {
+                    group: formData.get('vendor-erizos-group') as string,
+                },
             }
 
             manifest = await interpreter.createManifest(
@@ -180,7 +183,7 @@
     </div>
 
     {#if hasLoaded}
-        <div class="card actions">
+        <aside class="card actions">
             <p class="label label-big">Preview Controls</p>
             {#each Object.entries(actionsToTriggersMap) as [action, trigger] (action)}
                 {#if action === 'customActions'}
@@ -211,12 +214,12 @@
                     >
                 {/if}
             {/each}
-        </div>
+        </aside>
     {/if}
 
     <div class="card">
-        <span class="label">Status</span>
-        <p data-status={statusType}>{status}</p>
+        <h2>Status</h2>
+        <p class="status" data-status={statusType}>{status}</p>
     </div>
 
     {#if riveProps.length}
@@ -236,7 +239,7 @@
             }}
         >
             <div class="card">
-                <span class="label">Rive ViewModel Properties</span>
+                <h2>Rive ViewModel Properties</h2>
                 <table class="property-list">
                     <thead>
                         <tr>
@@ -293,7 +296,7 @@
             </div>
 
             <div class="card">
-                <span class="label">Graphic Metadata</span>
+                <h2>Graphic Metadata</h2>
                 <table class="metadata-form">
                     <tbody>
                         <tr>
@@ -301,7 +304,6 @@
                             <td
                                 ><input
                                     type="text"
-                                    id="manifest-name"
                                     name="manifest-name"
                                     placeholder="Graphic name"
                                     required
@@ -316,7 +318,6 @@
                             >
                             <td
                                 ><textarea
-                                    id="manifest-description"
                                     name="manifest-description"
                                     placeholder="Brief description (optional)"
                                     rows="5">{DEFAULT_DESCRIPTION}</textarea
@@ -328,11 +329,23 @@
                             <td
                                 ><input
                                     type="text"
-                                    id="manifest-id"
                                     name="manifest-id"
                                     placeholder="Unique identifier for this graphic"
                                     value="rive-ograf-template"
                                     required
+                                /></td
+                            >
+                        </tr>
+                        <tr>
+                            <td
+                                ><label for="manifest-version">Version</label
+                                ></td
+                            >
+                            <td
+                                ><input
+                                    type="text"
+                                    name="manifest-version"
+                                    placeholder="e.g. 1, 1.0.1, v2, etc."
                                 /></td
                             >
                         </tr>
@@ -345,10 +358,8 @@
                             <td
                                 ><input
                                     type="text"
-                                    id="manifest-author-name"
                                     name="manifest-author-name"
                                     placeholder="Author name"
-                                    required
                                 /></td
                             >
                         </tr>
@@ -401,6 +412,24 @@
                         </tr>
                     </tbody>
                 </table>
+
+                <h3>Vendor settings</h3>
+                <table>
+                    <tbody>
+                        <tr>
+                            <th colspan="2">Erizos</th>
+                        </tr>
+                        <tr>
+                            <td>Group</td><td
+                                ><input
+                                    type="text"
+                                    name="vendor-erizos-group"
+                                    placeholder="Group name"
+                                /></td
+                            >
+                        </tr>
+                    </tbody>
+                </table>
             </div>
 
             <button type="submit">{hasLoaded ? 'LGTM!' : 'Preview'}</button>
@@ -413,37 +442,28 @@
         color: white;
     }
 
-    .label {
-        font-weight: 500;
-        text-transform: uppercase;
-
-        &.label-big {
-            font-size: 1.25em;
-        }
-    }
-
     .card {
         margin: 2em 0;
         text-align: left;
+    }
 
-        > .label {
-            & + p[data-status='error'] {
-                color: #ff4d4f;
-            }
-            & + p[data-status='success'] {
-                color: #52c41a;
-            }
-            & + p[data-status='warn'] {
-                color: #faad14;
-            }
-            & + p[data-status='info'] {
-                color: #1890ff;
-            }
+    .status {
+        &[data-status='error'] {
+            color: #ff4d4f;
+        }
+        &[data-status='success'] {
+            color: #52c41a;
+        }
+        &[data-status='warn'] {
+            color: #faad14;
+        }
+        &[data-status='info'] {
+            color: #1890ff;
+        }
 
-            & + p:before {
-                content: '|';
-                margin: 0 1em 0 0;
-            }
+        &::before {
+            content: '|';
+            margin: 0 1em 0 0;
         }
     }
 
