@@ -1,19 +1,19 @@
 {
-    "$schema": "https://ograf.ebu.io/v1/specification/json-schemas/graphics/schema.json",
-    "name": "Rive OGraf Template",
-    "description": "OGraf Graphic containing a Rive state machine.",
-    "id": "rive-ograf-template",
-    "main": "RiveOGrafTemplate.mjs",
-    "version": "0",
-    "renderRequirements": [
-        {
-            "accessToPublicInternet": { "exact": true }
-        }
-    ],
-    "supportsRealTime": true,
-    "supportsNonRealTime": false,
-    "stepCount": 1,
-    "v_riveOGrafWrapper": {
-        "version": "0.0.1"
-    }
+	"$schema": "https://ograf.ebu.io/v1/specification/json-schemas/graphics/schema.json",
+	"name": "Rive OGraf Template",
+	"description": "OGraf Graphic containing a Rive state machine.",
+	"id": "rive-ograf-template",
+	"main": "RiveOGrafTemplate.mjs",
+	"version": "0",
+	"renderRequirements": [
+		{
+			"accessToPublicInternet": { "exact": true }
+		}
+	],
+	"supportsRealTime": true,
+	"supportsNonRealTime": false,
+	"stepCount": 1,
+	"v_riveOGrafWrapper": {
+		"version": "0.0.1"
+	}
 }

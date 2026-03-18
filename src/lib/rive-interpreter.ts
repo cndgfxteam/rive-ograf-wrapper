@@ -5,232 +5,216 @@ import RiveOGrafTemplate from './RiveOGrafTemplate'
 import JSZip from 'jszip'
 
 type RiveInterpreterOptions = (
-    | { src: string; buffer?: never }
-    | { src?: never; buffer: ArrayBuffer }
+	| { src: string; buffer?: never }
+	| { src?: never; buffer: ArrayBuffer }
 ) & {
-    onFileLoad?: (file: RiveFile) => void
+	onFileLoad?: (file: RiveFile) => void
 }
 
 export interface TriggerMap {
-    playAction: string
-    stopAction: string
-    customActions: string[]
+	playAction: string
+	stopAction: string
+	customActions: string[]
 }
 
 export default class RiveInterpreter {
-    #buffer: ArrayBuffer
-    #canvas: OffscreenCanvas
-    #riveFile?: RiveFile
-    #riveInstance?: Rive
-    #isInstanceLoaded: boolean = false
-    #onFileLoad?: (file: RiveFile) => void
-    #artboardHeight: number = 0
-    #artboardWidth: number = 0
-    #propertiesCache?: ViewModelProperty[]
+	#buffer: ArrayBuffer
+	#canvas: OffscreenCanvas
+	#riveFile?: RiveFile
+	#riveInstance?: Rive
+	#isInstanceLoaded: boolean = false
+	#onFileLoad?: (file: RiveFile) => void
+	#artboardHeight: number = 0
+	#artboardWidth: number = 0
+	#propertiesCache?: ViewModelProperty[]
 
-    constructor(options: RiveInterpreterOptions) {
-        if (!options.src && !options.buffer) {
-            throw new Error(
-                'Rive file is required for RiveInterpreter constructor.',
-            )
-        }
+	constructor(options: RiveInterpreterOptions) {
+		if (!options.src && !options.buffer) {
+			throw new Error('Rive file is required for RiveInterpreter constructor.')
+		}
 
-        if (options.src && options.buffer) {
-            throw new Error(
-                'Provide either src or buffer, not both, to RiveInterpreter constructor.',
-            )
-        }
+		if (options.src && options.buffer) {
+			throw new Error('Provide either src or buffer, not both, to RiveInterpreter constructor.')
+		}
 
-        this.#canvas = new OffscreenCanvas(1, 1)
-        this.#onFileLoad = options.onFileLoad
-        this.#buffer = options.buffer ?? new ArrayBuffer(0)
+		this.#canvas = new OffscreenCanvas(1, 1)
+		this.#onFileLoad = options.onFileLoad
+		this.#buffer = options.buffer ?? new ArrayBuffer(0)
 
-        this.loadRiveFile(options.buffer ?? options.src)
-    }
+		this.loadRiveFile(options.buffer ?? options.src)
+	}
 
-    async loadRiveFile(src: string | ArrayBuffer) {
-        const loadMethod =
-            src instanceof ArrayBuffer ? { buffer: src } : { src }
-        const file = new RiveFile({
-            ...loadMethod,
-            onLoad: (e) => {
-                // console.log('Rive file loaded successfully.', e)
-                this.#riveFile = file
-                this.#onFileLoad?.(file)
-            },
-            onLoadError: (err) => {
-                throw new Error(`Failed to load Rive file: ${err}`)
-            },
-        })
+	async loadRiveFile(src: string | ArrayBuffer) {
+		const loadMethod = src instanceof ArrayBuffer ? { buffer: src } : { src }
+		const file = new RiveFile({
+			...loadMethod,
+			onLoad: (e) => {
+				// console.log('Rive file loaded successfully.', e)
+				this.#riveFile = file
+				this.#onFileLoad?.(file)
+			},
+			onLoadError: (err) => {
+				throw new Error(`Failed to load Rive file: ${err}`)
+			},
+		})
 
-        try {
-            await file.init()
-            return file
-        } catch (e) {
-            console.error(e)
-            return
-        }
-    }
+		try {
+			await file.init()
+			return file
+		} catch (e) {
+			console.error(e)
+			return
+		}
+	}
 
-    async parseProperties(): Promise<ViewModelProperty[]> {
-        if (!this.#riveFile) {
-            throw new Error('Rive file not loaded yet.')
-        }
+	async parseProperties(): Promise<ViewModelProperty[]> {
+		if (!this.#riveFile) {
+			throw new Error('Rive file not loaded yet.')
+		}
 
-        if (!this.#riveInstance) {
-            this.#riveInstance = new Rive({
-                riveFile: this.#riveFile,
-                canvas: this.#canvas,
-                autoBind: true,
-            })
-        }
+		if (!this.#riveInstance) {
+			this.#riveInstance = new Rive({
+				riveFile: this.#riveFile,
+				canvas: this.#canvas,
+				autoBind: true,
+			})
+		}
 
-        // TODO: reject promise on improperly formatted Rive files
-        return new Promise<ViewModelProperty[]>((resolve) => {
-            if (this.#isInstanceLoaded && this.#propertiesCache) {
-                resolve(this.#propertiesCache)
-                return
-            }
+		// TODO: reject promise on improperly formatted Rive files
+		return new Promise<ViewModelProperty[]>((resolve) => {
+			if (this.#isInstanceLoaded && this.#propertiesCache) {
+				resolve(this.#propertiesCache)
+				return
+			}
 
-            this.#riveInstance!.on(EventType.Load, () => {
-                this.#isInstanceLoaded = true
-                this.#propertiesCache =
-                    this.#riveInstance!.viewModelInstance?.properties ?? []
-                this.#artboardHeight = this.#riveInstance!.artboardHeight
-                this.#artboardWidth = this.#riveInstance!.artboardWidth
-                resolve(this.#propertiesCache)
-            })
-        })
-    }
+			this.#riveInstance!.on(EventType.Load, () => {
+				this.#isInstanceLoaded = true
+				this.#propertiesCache = this.#riveInstance!.viewModelInstance?.properties ?? []
+				this.#artboardHeight = this.#riveInstance!.artboardHeight
+				this.#artboardWidth = this.#riveInstance!.artboardWidth
+				resolve(this.#propertiesCache)
+			})
+		})
+	}
 
-    async createManifest(
-        triggerMap: TriggerMap,
-        propertyDefaults: { [key: string]: string | number } = {},
-        metadata: {
-            name: string
-            description?: string
-            id: string
-            author: {
-                name: string
-                email?: string
-                url?: string
-            }
-            stepCount: number
-        },
-    ): Promise<GraphicsManifest> {
-        try {
-            const template: GraphicsManifest = await (
-                await fetch('./manifest.ograf.json')
-            ).json()
-            const properties = this.#propertiesCache
+	async createManifest(
+		triggerMap: TriggerMap,
+		propertyDefaults: { [key: string]: string | number } = {},
+		metadata: {
+			name: string
+			description?: string
+			id: string
+			author: {
+				name: string
+				email?: string
+				url?: string
+			}
+			stepCount: number
+		}
+	): Promise<GraphicsManifest> {
+		try {
+			const template: GraphicsManifest = await (await fetch('./manifest.ograf.json')).json()
+			const properties = this.#propertiesCache
 
-            if (!properties) {
-                throw new Error(
-                    'Properties must be parsed before creating manifest.',
-                )
-            }
+			if (!properties) {
+				throw new Error('Properties must be parsed before creating manifest.')
+			}
 
-            const manifest: GraphicsManifest = { ...template, ...metadata }
+			const manifest: GraphicsManifest = { ...template, ...metadata }
 
-            manifest.customActions = []
-            manifest[__MANIFEST_VERSION_KEY__] = __VERSION__
-            manifest.schema = {
-                type: 'object',
-                properties: {},
-            }
+			manifest.customActions = []
+			manifest[__MANIFEST_VERSION_KEY__] = __VERSION__
+			manifest.schema = {
+				type: 'object',
+				properties: {},
+			}
 
-            properties.forEach((prop) => {
-                if (
-                    prop.name === triggerMap.playAction ||
-                    prop.name === triggerMap.stopAction
-                ) {
-                    return
-                }
+			properties.forEach((prop) => {
+				if (prop.name === triggerMap.playAction || prop.name === triggerMap.stopAction) {
+					return
+				}
 
-                /* @ts-expect-error - Rive's DataType enum is weird and behaves like a string but types like a number */
-                if (prop.type === 'trigger') {
-                    manifest.customActions!.push({
-                        id: prop.name,
-                        name: prop.name,
-                        description: `Auto-generated custom action for ${prop.name}`,
-                    })
-                    return
-                }
+				/* @ts-expect-error - Rive's DataType enum is weird and behaves like a string but types like a number */
+				if (prop.type === 'trigger') {
+					manifest.customActions!.push({
+						id: prop.name,
+						name: prop.name,
+						description: `Auto-generated custom action for ${prop.name}`,
+					})
+					return
+				}
 
-                manifest.schema!.properties![prop.name] = {
-                    type: prop.type,
-                    title: prop.name,
-                    description: `Auto-generated property for ${prop.name}`,
-                    ...(propertyDefaults[prop.name] !== undefined &&
-                        propertyDefaults[prop.name] !== '' && {
-                            default: propertyDefaults[prop.name],
-                        }),
-                }
-            })
+				manifest.schema!.properties![prop.name] = {
+					type: prop.type,
+					title: prop.name,
+					description: `Auto-generated property for ${prop.name}`,
+					...(propertyDefaults[prop.name] !== undefined &&
+						propertyDefaults[prop.name] !== '' && {
+							default: propertyDefaults[prop.name],
+						}),
+				}
+			})
 
-            return manifest
-        } catch (e) {
-            throw new Error(`Failed to create manifest: ${e}`)
-        }
-    }
+			return manifest
+		} catch (e) {
+			throw new Error(`Failed to create manifest: ${e}`)
+		}
+	}
 
-    createTestTemplate(
-        triggerMap: TriggerMap,
-        propertyDefaults: { [key: string]: string | number } = {},
-    ): RiveOGrafTemplate {
-        if (!this.#riveFile) {
-            throw new Error('Rive file not loaded yet.')
-        }
+	createTestTemplate(
+		triggerMap: TriggerMap,
+		propertyDefaults: { [key: string]: string | number } = {}
+	): RiveOGrafTemplate {
+		if (!this.#riveFile) {
+			throw new Error('Rive file not loaded yet.')
+		}
 
-        if (!this.#propertiesCache) {
-            throw new Error('Properties not parsed yet.')
-        }
+		if (!this.#propertiesCache) {
+			throw new Error('Properties not parsed yet.')
+		}
 
-        return new RiveOGrafTemplate(
-            this.#riveFile,
-            this.#artboardWidth,
-            this.#artboardHeight,
-            triggerMap,
-            propertyDefaults,
-        )
-    }
+		return new RiveOGrafTemplate(
+			this.#riveFile,
+			this.#artboardWidth,
+			this.#artboardHeight,
+			triggerMap,
+			propertyDefaults
+		)
+	}
 
-    async createOGrafPackage(
-        manifest: GraphicsManifest,
-        triggerMap: TriggerMap,
-    ) {
-        if (!this.#riveFile) {
-            throw new Error('Rive file not loaded yet.')
-        }
+	async createOGrafPackage(manifest: GraphicsManifest, triggerMap: TriggerMap) {
+		if (!this.#riveFile) {
+			throw new Error('Rive file not loaded yet.')
+		}
 
-        const res = await fetch('./RiveOGrafTemplate.mjs')
-        const template = await res.text()
-        const bufferData = new Uint8Array(this.#buffer)
-        const fileContent = template
-            .replace(`#width = 500`, `#width = ${this.#artboardWidth}`)
-            .replace(`#height = 500`, `#height = ${this.#artboardHeight}`)
-            .replace('${PLAY_ACTION_TRIGGER}', triggerMap.playAction)
-            .replace('${STOP_ACTION_TRIGGER}', triggerMap.stopAction)
-            .replace("'${RIVE_FILE}'", `[${bufferData.toString()}]`)
-        const zip = new JSZip()
+		const res = await fetch('./RiveOGrafTemplate.mjs')
+		const template = await res.text()
+		const bufferData = new Uint8Array(this.#buffer)
+		const fileContent = template
+			.replace(`#width = 500`, `#width = ${this.#artboardWidth}`)
+			.replace(`#height = 500`, `#height = ${this.#artboardHeight}`)
+			.replace('${PLAY_ACTION_TRIGGER}', triggerMap.playAction)
+			.replace('${STOP_ACTION_TRIGGER}', triggerMap.stopAction)
+			.replace("'${RIVE_FILE}'", `[${bufferData.toString()}]`)
+		const zip = new JSZip()
 
-        zip.file(manifest.main, fileContent)
-        zip.file('manifest.ograf.json', JSON.stringify(manifest))
+		zip.file(manifest.main, fileContent)
+		zip.file('manifest.ograf.json', JSON.stringify(manifest))
 
-        zip.generateAsync({ type: 'blob' }).then((blob) => {
-            this.#triggerDownload(blob, `${manifest.id}.zip`)
-            console.info('Template generated and download triggered.')
-        })
-    }
+		zip.generateAsync({ type: 'blob' }).then((blob) => {
+			this.#triggerDownload(blob, `${manifest.id}.zip`)
+			console.info('Template generated and download triggered.')
+		})
+	}
 
-    #triggerDownload(blob: Blob, filename: string) {
-        const url = URL.createObjectURL(blob)
-        const downloadLink = document.createElement('a')
-        downloadLink.href = url
-        downloadLink.download = filename
-        document.body.appendChild(downloadLink)
-        downloadLink.click()
-        document.body.removeChild(downloadLink)
-        URL.revokeObjectURL(url)
-    }
+	#triggerDownload(blob: Blob, filename: string) {
+		const url = URL.createObjectURL(blob)
+		const downloadLink = document.createElement('a')
+		downloadLink.href = url
+		downloadLink.download = filename
+		document.body.appendChild(downloadLink)
+		downloadLink.click()
+		document.body.removeChild(downloadLink)
+		URL.revokeObjectURL(url)
+	}
 }
