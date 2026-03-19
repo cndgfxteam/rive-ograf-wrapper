@@ -31,8 +31,29 @@ body {
 }
 
 h1 {
-    font-size: 3.2em;
+    font-size: 3rem;
+    font-weight: 700;
+    font-variant: small-caps;
     line-height: 1.1;
+}
+
+h2 {
+    font-size: 1.25rem;
+}
+
+h3 {
+    font-size: 1.125rem;
+}
+
+h2,
+h3,
+.label {
+    font-weight: 500;
+    text-transform: uppercase;
+
+    &.label-big {
+        font-size: 1.25em;
+    }
 }
 
 #app {

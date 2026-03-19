@@ -13,5 +13,7 @@
     "supportsRealTime": true,
     "supportsNonRealTime": false,
     "stepCount": 1,
-    "v_riveConverterVersion": "0.0.0"
+    "v_riveOGrafWrapper": {
+        "version": "0.0.1"
+    }
 }
