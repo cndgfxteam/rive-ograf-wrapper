@@ -4,7 +4,7 @@
 	import FileUploader from './lib/FileUploader.svelte'
 	import RiveInterpreter, { type TriggerMap } from './lib/rive-interpreter'
 	import RiveOGrafTemplate from './lib/RiveOGrafTemplate'
-	import type { GraphicsManifest } from 'ograf'
+	import type { GraphicsAPI, GraphicsManifest } from 'ograf'
 
 	const STATUS_TYPES = ['error', 'success', 'warn', 'info'] as const
 	const STATUS_VARIANTS = {
@@ -22,22 +22,26 @@
 
 	const DEFAULT_DESCRIPTION =
 		'OGraf Graphic containing a Rive state machine. Generated using the Rive OGraf Wrapper tool.'
+
+	let hasUploaded = $state(false)
+	let isPreviewing = $state(false)
 	let status = $state('No file uploaded')
 	let statusType = $state<'error' | 'success' | 'warn' | 'info'>('error')
-	let riveProps = $state<ViewModelProperty[]>([])
 	let interpreter: RiveInterpreter | undefined = $state()
 	let manifest: GraphicsManifest | undefined = $state()
-	let template: RiveOGrafTemplate | undefined = $state()
-	let hasLoaded = $state(false)
-	let triggersToActionsMap = $state<{
-		[key: string]: 'playAction' | 'stopAction' | 'customAction'
-	}>({})
+	let template: (HTMLElement & GraphicsAPI.Graphic) | undefined = $state()
+	let playActionTrigger = $state('')
+	let stopActionTrigger = $state('')
+	let triggers = $state<string[]>([])
 
-	const defaultStepCount = $derived(
-		riveProps.find((prop) => prop.name === 'stepCount')
-			? riveProps.find((prop) => prop.name === 'stepCount')
-			: 1
+	const customActionTriggers = $derived(
+		triggers.filter((t) => t !== playActionTrigger && t !== stopActionTrigger)
 	)
+	const actionsToTriggersMap: TriggerMap = $derived({
+		playAction: playActionTrigger,
+		stopAction: stopActionTrigger,
+		customActions: customActionTriggers,
+	})
 
 	async function handleRivFile(file: File) {
 		if (!file.name.endsWith('.riv')) {
@@ -51,66 +55,13 @@
 
 		interpreter = new RiveInterpreter({
 			buffer: await file.arrayBuffer(),
-			onFileLoad: async (file) => {
-				riveProps = await interpreter!.parseProperties()
-
-				triggersToActionsMap = riveProps.reduce(
-					(map, prop) => {
-						// @ts-expect-error - Rive DataType is messed up and doesn't recognize 'trigger' as a valid type
-						if (prop.type === 'trigger') {
-							map[prop.name] = 'customAction'
-						}
-
-						return map
-					},
-					{} as { [key: string]: 'playAction' | 'stopAction' | 'customAction' }
-				)
-
+			onFileLoad: async (trigs) => {
 				status = 'ViewModel properties parsed'
 				statusType = 'success'
+				triggers = trigs
+				hasUploaded = true
 			},
 		})
-	}
-
-	const getTriggerForAction = (action: 'playAction' | 'stopAction') => {
-		const trigger = Object.keys(triggersToActionsMap).find(
-			(key) => triggersToActionsMap[key] === action
-		)
-
-		if (!trigger) {
-			alert("You must have exactly one trigger assigned to 'playAction' and 'stopAction'.")
-
-			throw new Error(`No trigger assigned to ${action}`)
-		}
-
-		return trigger
-	}
-
-	const actionsToTriggersMap: TriggerMap = $derived({
-		playAction: getTriggerForAction('playAction'),
-		stopAction: getTriggerForAction('stopAction'),
-		customActions: Object.entries(triggersToActionsMap)
-			.filter(([_, action]) => action === 'customAction')
-			.map(([trigger, _]) => trigger),
-	})
-
-	const extractPropertyDefaults = (formData: FormData) => {
-		const propertyDefaults: { [key: string]: string | number } = {}
-
-		riveProps.forEach((prop) => {
-			// @ts-expect-error - Rive DataType is messed up and doesn't recognize 'trigger' as a valid type
-			if (prop.type === 'trigger') {
-				return
-			}
-
-			const value = formData.get(`property-${prop.name}`) as string
-
-			if (value && value.trim() !== '') {
-				propertyDefaults[prop.name] = (prop.type as any) === 'number' ? Number(value) : value
-			}
-		})
-
-		return propertyDefaults
 	}
 
 	const previewOGraf = async (formData: FormData) => {
@@ -120,9 +71,7 @@
 			return
 		}
 
-		const propertyDefaults = extractPropertyDefaults(formData)
-
-		template = interpreter.createTestTemplate(actionsToTriggersMap, propertyDefaults)
+		template = interpreter.createTestTemplate(actionsToTriggersMap)
 		document.querySelector('#preview-container')?.replaceWith(template)
 
 		await template.load({
@@ -130,8 +79,11 @@
 			renderCharacteristics: { accessToPublicInternet: true },
 		})
 
-		hasLoaded = true
-		scrollTo({ top: 0, behavior: 'smooth' })
+		isPreviewing = true
+		scrollTo({
+			top: 0,
+			behavior: 'smooth',
+		})
 	}
 
 	const createOGraf = async (formData: FormData) => {
@@ -143,22 +95,26 @@
 			const authorName = formData.get('manifest-author-name') as string
 			const authorEmail = formData.get('manifest-author-email') as string
 			const authorUrl = formData.get('manifest-author-url') as string
-			const propertyDefaults = extractPropertyDefaults(formData)
 
 			const metadata = {
 				name: formData.get('manifest-name') as string,
 				description: formData.get('manifest-description') as string,
 				id: formData.get('manifest-id') as string,
-				author: {
-					name: authorName,
-					...(authorEmail && { email: authorEmail }),
-					...(authorUrl && { url: authorUrl }),
-				},
+				version: formData.get('manifest-version') as string,
+				author: authorName
+					? {
+							name: authorName,
+							...(authorEmail && { email: authorEmail }),
+							...(authorUrl && { url: authorUrl }),
+						}
+					: undefined,
 				stepCount: Number(formData.get('manifest-stepcount')) || 1,
-				v_erizos: { group: formData.get('vendor-erizos-group') as string },
+				v_erizos: {
+					group: formData.get('vendor-erizos-group') as string,
+				},
 			}
 
-			manifest = await interpreter.createManifest(actionsToTriggersMap, propertyDefaults, metadata)
+			manifest = await interpreter.createManifest(actionsToTriggersMap, metadata)
 			await interpreter.createOGrafPackage(manifest, actionsToTriggersMap)
 			status = 'OGraf package created! Download initiated.'
 			statusType = 'success'
@@ -174,14 +130,14 @@
 	<h1>Rive OGraf Wrapper</h1>
 
 	<div id="preview-container">
-		{#if !riveProps.length}
+		{#if !hasUploaded}
 			<FileUploader accept=".riv" onFile={handleRivFile} />
 		{:else}
 			<p class="preview-cover">Assign file properties below</p>
 		{/if}
 	</div>
 
-	{#if hasLoaded}
+	{#if isPreviewing}
 		<div class="card bg-neutral/50 text-start text-neutral-content card-sm">
 			<div class="card-body">
 				<h2 class="card-title">Preview Controls</h2>
@@ -226,77 +182,59 @@
 		</div>
 	</div>
 
-	{#if riveProps.length}
+	{#if hasUploaded}
 		<form
 			onsubmit={(e) => {
 				e.preventDefault()
-
 				const formData = new FormData(e.currentTarget)
 
 				// TODO: Form validation
-				if (!hasLoaded) {
-					previewOGraf(formData)
 
+				if (!isPreviewing) {
+					previewOGraf(formData)
 					return
 				}
 
 				createOGraf(formData)
 			}}
 		>
-			<div class="card my-4 bg-base-200 card-sm">
+			<div class="card">
 				<div class="card-body">
-					<h2 class="card-title">Rive ViewModel Properties</h2>
-
-					<table class="table table-zebra bg-base-100 table-sm">
-						<thead><tr><th>Property name</th><th>Default value</th></tr></thead>
-
-						<tbody>
-							{#each riveProps as prop (prop.name)}
-								<tr>
-									<td><label for="property-{prop.name}">{prop.name}</label></td>
-									<!-- We need the "any" here because of the Rive DataType issue and not being able to use @ts-expect-error here -->
-
-									{#if prop.type === ('trigger' as any)}
-										<td>
-											<select
-												class="select select-sm"
-												name="assign_{prop.name}"
-												id="property-{prop.name}"
-												onchange={(e) =>
-													(triggersToActionsMap[prop.name] = e.currentTarget.value as
-														| 'playAction'
-														| 'stopAction'
-														| 'customAction')}
-											>
-												<option value="playAction">playAction</option>
-												<option value="stopAction">stopAction</option>
-												<option value="customAction" selected>customAction</option>
-											</select>
-										</td>
-									{:else}
-										<td>
-											<!-- We need the "any"s here because of the Rive DataType issue and not being able to use @ts-expect-error here -->
-
-											<input
-												class="input input-sm"
-												type={(prop.type as any) === 'number' ? 'number' : 'text'}
-												name="property-{prop.name}"
-												id="property-{prop.name}"
-												placeholder={prop.type as any}
-											/>
-										</td>
-									{/if}
-								</tr>
+					<h2 class="card-title">Assign Actions</h2>
+					<label
+						><span>Play action trigger</span>
+						<select
+							class="select select-sm"
+							name="playActionTrigger"
+							bind:value={playActionTrigger}
+							required
+						>
+							<option value="" selected disabled></option>
+							{#each triggers as trigger}
+								<option value={trigger}>{trigger}</option>
 							{/each}
-						</tbody>
-					</table>
+						</select></label
+					>
+					<label
+						><span>Stop action trigger</span>
+						<select
+							class="select select-sm"
+							name="stopActionTrigger"
+							bind:value={stopActionTrigger}
+							required
+						>
+							<option value="" selected disabled></option>
+							{#each triggers as trigger}
+								<option value={trigger}>{trigger}</option>
+							{/each}
+						</select></label
+					>
 				</div>
 			</div>
 
 			<div class="card my-4 bg-base-200 card-sm">
 				<div class="card-body">
 					<h2 class="card-title">Graphic Metadata</h2>
-
 					<table class="table table-zebra bg-base-100 table-sm">
 						<tbody>
 							<tr>
@@ -410,7 +348,7 @@
 										id="manifest-stepcount"
 										name="manifest-stepcount"
 										min="0"
-										value={defaultStepCount}
+										value={1}
 										required
 									/>
 								</td>
@@ -442,7 +380,9 @@
 				</div>
 			</div>
 
-			<button class="btn mt-2 btn-primary" type="submit">{hasLoaded ? 'LGTM!' : 'Preview'}</button>
+			<button class="btn mt-2 btn-primary" type="submit"
+				>{isPreviewing ? 'LGTM!' : 'Preview'}</button
+			>
 		</form>
 	{/if}
 </main>
@@ -469,7 +409,8 @@
 		margin: 0;
 	}
 
-	tr:has(input[required]) label::after {
+	tr:has(input[required]) label::after,
+	label:has([required]) span::after {
 		content: '*';
 		margin-left: 0.25em;
 	}
