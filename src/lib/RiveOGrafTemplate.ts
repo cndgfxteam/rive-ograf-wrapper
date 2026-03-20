@@ -137,7 +137,8 @@ class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
                 case 'list':
                     const items = data[key] as Record<string, unknown>[]
                     const list = vmi.list(key)!
-                    const vmName = list.instanceAt(0)?.viewModel.name
+                    // TODO: REMOVE THE HARDCODED VM NAME ASAP
+                    const vmName = list.instanceAt(0)?.viewModel.name || 'BarVM'
 
                     if (!this.#riveInstance) {
                         throw new Error('Rive instance not available.')
