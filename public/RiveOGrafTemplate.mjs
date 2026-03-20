@@ -1,13 +1,17 @@
 class RiveOGrafTemplate extends HTMLElement {
     #canvas
     #currentStep = 0
+
+    /* === REPLACED VARIABLES === */
     #width = 500
     #height = 500
     #playActionTrigger = '${PLAY_ACTION_TRIGGER}'
     #stopActionTrigger = '${STOP_ACTION_TRIGGER}'
     #riveBuffer = new Uint8Array('${RIVE_FILE}')
-    #riveInstance
+
+    /* === RIVE-SPECIFIC VARIABLES === */
     #hasRiveScriptLoaded
+    #riveInstance
     #vmi
 
     constructor() {
@@ -15,6 +19,7 @@ class RiveOGrafTemplate extends HTMLElement {
         this.attachShadow({ mode: 'open' })
         this.#canvas = document.createElement('canvas')
 
+        // TODO: Find a way to bundle the Rive runtime with the graphic instead of loading from CDN
         const script = document.createElement('script')
         script.src = 'https://unpkg.com/@rive-app/webgl@2.35.0'
         this.#hasRiveScriptLoaded = new Promise((resolve) => {
@@ -34,13 +39,12 @@ class RiveOGrafTemplate extends HTMLElement {
             await this.#hasRiveScriptLoaded
 
             if (this.#riveInstance) {
-                return this.updateAction(params)
+                return this.updateAction({ data: params.data })
             }
 
             return new Promise((resolve) => {
                 this.#canvas.width = this.#width
                 this.#canvas.height = this.#height
-                this.#canvas.style.outline = '1px solid #fff'
                 this.shadowRoot?.appendChild(this.#canvas)
 
                 this.#riveInstance = new window.rive.Rive({
@@ -65,7 +69,9 @@ class RiveOGrafTemplate extends HTMLElement {
                         )
 
                         if (params.data) {
-                            return resolve(this.updateAction(params))
+                            return resolve(
+                                this.updateAction({ data: params.data }),
+                            )
                         }
 
                         return resolve({ statusCode: 200 })
@@ -89,6 +95,83 @@ class RiveOGrafTemplate extends HTMLElement {
         return { statusCode: 200 }
     }
 
+    #setInstancePropertyValues(vmi, data) {
+        for (let key in data) {
+            const type = vmi.properties.find((p) => p.name === key)?.type
+
+            if (!type) {
+                throw new Error(`Property ${key} not found in Rive file.`)
+            }
+
+            switch (type) {
+                /* @ts-expect-error - Rive's DataType is bugged */
+                case 'string':
+                    vmi.string(key).value = data[key]
+                    break
+                /* @ts-expect-error - Rive's DataType is bugged */
+                case 'number':
+                    vmi.number(key).value = data[key]
+                    break
+                /* @ts-expect-error - Rive's DataType is bugged */
+                case 'boolean':
+                    vmi.boolean(key).value = data[key]
+                    break
+                /* @ts-expect-error - Rive's DataType is bugged */
+                case 'color':
+                    vmi.color(key).value = data[key]
+                    break
+                /* @ts-expect-error - Rive's DataType is bugged */
+                case 'enum':
+                    vmi.enum(key).value = data[key]
+                    break
+                /* @ts-expect-error - Rive's DataType is bugged */
+                case 'list':
+                    const items = data[key]
+                    const list = vmi.list(key)
+                    // TODO: REMOVE THE HARDCODED VM NAME ASAP
+                    const vmName = list.instanceAt(0)?.viewModel.name || 'BarVM'
+
+                    if (!this.#riveInstance) {
+                        throw new Error('Rive instance not available.')
+                    }
+
+                    if (!Array.isArray(items)) {
+                        throw new Error(
+                            `Expected an array for property ${key}.`,
+                        )
+                    }
+
+                    if (!vmName) {
+                        throw new Error(`ViewModel for list ${key} not found.`)
+                    }
+
+                    const vm = this.#riveInstance.viewModelByName(vmName)
+
+                    if (!vm) {
+                        throw new Error(`ViewModel for list ${key} not found.`)
+                    }
+
+                    // Clear the list
+                    while (list.length > 0) {
+                        list.removeInstanceAt(0)
+                    }
+
+                    // Repopulate the list with the new data
+                    items.forEach((item) => {
+                        const instance = vm.instance()
+                        this.#setInstancePropertyValues(instance, item)
+                        list.addInstance(instance)
+                    })
+
+                    break
+                default:
+                    throw new Error(
+                        `WIP: Unsupported property type for ${key}.`,
+                    )
+            }
+        }
+    }
+
     async updateAction(params) {
         if (!this.#riveInstance) {
             return { statusCode: 501 }
@@ -103,42 +186,7 @@ class RiveOGrafTemplate extends HTMLElement {
                 throw new Error('Data must be a non-null object.')
             }
 
-            for (let key in params.data) {
-                const type = this.#vmi.properties.find(
-                    (p) => p.name === key,
-                )?.type
-
-                if (!type) {
-                    throw new Error(`Property ${key} not found in Rive file.`)
-                }
-
-                switch (type) {
-                    /* @ts-expect-error - Rive's DataType enum is weird and behaves like a string but types like a number */
-                    case 'string':
-                        this.#vmi.string(key).value = params.data[key]
-                        break
-                    /* @ts-expect-error - Rive's DataType enum is weird and behaves like a string but types like a number */
-                    case 'number':
-                        this.#vmi.number(key).value = params.data[key]
-                        break
-                    /* @ts-expect-error - Rive's DataType enum is weird and behaves like a string but types like a number */
-                    case 'boolean':
-                        this.#vmi.boolean(key).value = params.data[key]
-                        break
-                    /* @ts-expect-error - Rive's DataType enum is weird and behaves like a string but types like a number */
-                    case 'color':
-                        this.#vmi.color(key).value = params.data[key]
-                        break
-                    /* @ts-expect-error - Rive's DataType enum is weird and behaves like a string but types like a number */
-                    case 'enum':
-                        this.#vmi.enum(key).value = params.data[key]
-                        break
-                    default:
-                        throw new Error(
-                            `WIP: Unsupported property type for ${key}.`,
-                        )
-                }
-            }
+            this.#setInstancePropertyValues(this.#vmi, params.data)
 
             return { statusCode: 200 }
         } catch (error) {

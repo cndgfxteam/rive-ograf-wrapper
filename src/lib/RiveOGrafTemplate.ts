@@ -12,14 +12,12 @@ class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
     #vmi: ViewModelInstance | undefined
     #playActionTrigger: string
     #stopActionTrigger: string
-    #propertyDefaults: { [key: string]: string | number }
 
     constructor(
         riveFile: RiveFile,
         width: number,
         height: number,
         triggerMap: TriggerMap,
-        propertyDefaults: { [key: string]: string | number } = {},
     ) {
         super()
         this.attachShadow({ mode: 'open' })
@@ -29,57 +27,9 @@ class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
         this.#riveFile = riveFile
         this.#playActionTrigger = triggerMap.playAction
         this.#stopActionTrigger = triggerMap.stopAction
-        this.#propertyDefaults = propertyDefaults
     }
 
     connectedCallback() {}
-
-    #applyDefaults() {
-        if (!this.#vmi || !this.#propertyDefaults) {
-            return
-        }
-
-        for (const [key, value] of Object.entries(this.#propertyDefaults)) {
-            if (value === undefined || value === '') {
-                continue
-            }
-
-            const property = this.#vmi.properties.find((p) => p.name === key)
-            if (!property) {
-                continue
-            }
-
-            try {
-                switch (property.type) {
-                    /* @ts-expect-error - Rive's DataType enum is weird and behaves like a string but types like a number */
-                    case 'string':
-                        this.#vmi.string(key)!.value = value as string
-                        break
-                    /* @ts-expect-error - Rive's DataType enum is weird and behaves like a string but types like a number */
-                    case 'number':
-                        this.#vmi.number(key)!.value = value as number
-                        break
-                    /* @ts-expect-error - Rive's DataType enum is weird and behaves like a string but types like a number */
-                    case 'boolean':
-                        this.#vmi.boolean(key)!.value = !!value
-                        break
-                    /* @ts-expect-error - Rive's DataType enum is weird and behaves like a string but types like a number */
-                    case 'color':
-                        this.#vmi.color(key)!.value = value as number
-                        break
-                    /* @ts-expect-error - Rive's DataType enum is weird and behaves like a string but types like a number */
-                    case 'enum':
-                        this.#vmi.enum(key)!.value = value as string
-                        break
-                }
-            } catch (error) {
-                console.warn(
-                    `Failed to apply default value for property ${key}:`,
-                    error,
-                )
-            }
-        }
-    }
 
     async load(
         params: Parameters<GraphicsAPI.Graphic['load']>[0],
@@ -97,6 +47,8 @@ class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
                 this.#canvas.width = this.#width
                 this.#canvas.height = this.#height
                 this.#canvas.style.outline = '1px solid #fff'
+                this.#canvas.style.background =
+                    'repeating-conic-gradient(#808080 0 25%, #0000 0 50%) 50% / 20px 20px'
                 this.shadowRoot?.appendChild(this.#canvas)
 
                 this.#riveInstance = new Rive({
@@ -119,8 +71,6 @@ class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
                             '%c☑️ Rive loaded.',
                             'color: #8368cb; font-weight: bold;',
                         )
-
-                        this.#applyDefaults()
 
                         if (params.data) {
                             return resolve(
@@ -151,6 +101,86 @@ class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
         return { statusCode: 200 }
     }
 
+    #setInstancePropertyValues(
+        vmi: ViewModelInstance,
+        data: Record<string, unknown>,
+    ) {
+        for (let key in data) {
+            const type = vmi.properties.find((p) => p.name === key)?.type
+
+            if (!type) {
+                throw new Error(`Property ${key} not found in Rive file.`)
+            }
+
+            switch (type) {
+                /* @ts-expect-error - Rive's DataType is bugged */
+                case 'string':
+                    vmi.string(key)!.value = data[key] as string
+                    break
+                /* @ts-expect-error - Rive's DataType is bugged */
+                case 'number':
+                    vmi.number(key)!.value = data[key] as number
+                    break
+                /* @ts-expect-error - Rive's DataType is bugged */
+                case 'boolean':
+                    vmi.boolean(key)!.value = data[key] as boolean
+                    break
+                /* @ts-expect-error - Rive's DataType is bugged */
+                case 'color':
+                    vmi.color(key)!.value = data[key] as number
+                    break
+                /* @ts-expect-error - Rive's DataType is bugged */
+                case 'enum':
+                    vmi.enum(key)!.value = data[key] as string
+                    break
+                /* @ts-expect-error - Rive's DataType is bugged */
+                case 'list':
+                    const items = data[key] as Record<string, unknown>[]
+                    const list = vmi.list(key)!
+                    // TODO: REMOVE THE HARDCODED VM NAME ASAP
+                    const vmName = list.instanceAt(0)?.viewModel.name || 'BarVM'
+
+                    if (!this.#riveInstance) {
+                        throw new Error('Rive instance not available.')
+                    }
+
+                    if (!Array.isArray(items)) {
+                        throw new Error(
+                            `Expected an array for property ${key}.`,
+                        )
+                    }
+
+                    if (!vmName) {
+                        throw new Error(`ViewModel for list ${key} not found.`)
+                    }
+
+                    const vm = this.#riveInstance.viewModelByName(vmName)
+
+                    if (!vm) {
+                        throw new Error(`ViewModel for list ${key} not found.`)
+                    }
+
+                    // Clear the list
+                    while (list.length > 0) {
+                        list.removeInstanceAt(0)
+                    }
+
+                    // Repopulate the list with the new data
+                    items.forEach((item) => {
+                        const instance = vm.instance()!
+                        this.#setInstancePropertyValues(instance, item)
+                        list.addInstance(instance)
+                    })
+
+                    break
+                default:
+                    throw new Error(
+                        `WIP: Unsupported property type for ${key}.`,
+                    )
+            }
+        }
+    }
+
     async updateAction(
         params: Parameters<GraphicsAPI.Graphic['updateAction']>[0],
     ): ReturnType<GraphicsAPI.Graphic['updateAction']> {
@@ -168,43 +198,7 @@ class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
             }
 
             const data = params.data as Record<string, unknown>
-
-            for (let key in data) {
-                const type = this.#vmi.properties.find(
-                    (p) => p.name === key,
-                )?.type
-
-                if (!type) {
-                    throw new Error(`Property ${key} not found in Rive file.`)
-                }
-
-                switch (type) {
-                    /* @ts-expect-error - Rive's DataType enum is weird and behaves like a string but types like a number */
-                    case 'string':
-                        this.#vmi.string(key)!.value = data[key] as string
-                        break
-                    /* @ts-expect-error - Rive's DataType enum is weird and behaves like a string but types like a number */
-                    case 'number':
-                        this.#vmi.number(key)!.value = data[key] as number
-                        break
-                    /* @ts-expect-error - Rive's DataType enum is weird and behaves like a string but types like a number */
-                    case 'boolean':
-                        this.#vmi.boolean(key)!.value = data[key] as boolean
-                        break
-                    /* @ts-expect-error - Rive's DataType enum is weird and behaves like a string but types like a number */
-                    case 'color':
-                        this.#vmi.color(key)!.value = data[key] as number
-                        break
-                    /* @ts-expect-error - Rive's DataType enum is weird and behaves like a string but types like a number */
-                    case 'enum':
-                        this.#vmi.enum(key)!.value = data[key] as string
-                        break
-                    default:
-                        throw new Error(
-                            `WIP: Unsupported property type for ${key}.`,
-                        )
-                }
-            }
+            this.#setInstancePropertyValues(this.#vmi, data)
 
             return { statusCode: 200 }
         } catch (error) {
