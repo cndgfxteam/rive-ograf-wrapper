@@ -198,37 +198,37 @@
 				createOGraf(formData)
 			}}
 		>
-			<div class="card">
+			<div class="card my-4 bg-base-200 card-sm">
 				<div class="card-body">
 					<h2 class="card-title">Assign Actions</h2>
-					<label
-						><span>Play action trigger</span>
+					<label class="flex flex-row items-center justify-between">
+						<span>Play action trigger</span>
 						<select
 							class="select select-sm"
 							name="playActionTrigger"
 							bind:value={playActionTrigger}
 							required
 						>
-							<option value="" selected disabled></option>
+							<option value="" selected disabled hidden>Select trigger...</option>
 							{#each triggers as trigger}
 								<option value={trigger}>{trigger}</option>
 							{/each}
-						</select></label
-					>
-					<label
-						><span>Stop action trigger</span>
+						</select>
+					</label>
+					<label class="flex flex-row items-center justify-between">
+						<span>Stop action trigger</span>
 						<select
 							class="select select-sm"
 							name="stopActionTrigger"
 							bind:value={stopActionTrigger}
 							required
 						>
-							<option value="" selected disabled></option>
+							<option value="" selected disabled hidden>Select trigger...</option>
 							{#each triggers as trigger}
 								<option value={trigger}>{trigger}</option>
 							{/each}
-						</select></label
-					>
+						</select>
+					</label>
 				</div>
 			</div>
 
