@@ -1,35 +1,30 @@
-import { Rive, type ViewModelInstance, type RiveFile } from '@rive-app/webgl2'
+import { Rive, type ViewModelInstance, type RiveFile, DataType } from '@rive-app/webgl2'
 import { GraphicsAPI, type ReturnPayload } from 'ograf'
 import type { TriggerMap } from './rive-interpreter'
 
 class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
-    #canvas: HTMLCanvasElement
-    #currentStep: number = 0
-    #width: number = 0
-    #height: number = 0
-    #riveFile: RiveFile
-    #riveInstance: Rive | undefined
-    #vmi: ViewModelInstance | undefined
-    #playActionTrigger: string
-    #stopActionTrigger: string
+	#canvas: HTMLCanvasElement
+	#currentStep: number = 0
+	#width: number = 0
+	#height: number = 0
+	#riveFile: RiveFile
+	#riveInstance: Rive | undefined
+	#vmi: ViewModelInstance | undefined
+	#playActionTrigger: string
+	#stopActionTrigger: string
 
-    constructor(
-        riveFile: RiveFile,
-        width: number,
-        height: number,
-        triggerMap: TriggerMap,
-    ) {
-        super()
-        this.attachShadow({ mode: 'open' })
-        this.#canvas = document.createElement('canvas')
-        this.#width = width > 500 ? 500 : width
-        this.#height = width > 500 ? (height / (width || 1)) * 500 : height
-        this.#riveFile = riveFile
-        this.#playActionTrigger = triggerMap.playAction
-        this.#stopActionTrigger = triggerMap.stopAction
-    }
+	constructor(riveFile: RiveFile, width: number, height: number, triggerMap: TriggerMap) {
+		super()
+		this.attachShadow({ mode: 'open' })
+		this.#canvas = document.createElement('canvas')
+		this.#width = width > 500 ? 500 : width
+		this.#height = width > 500 ? (height / (width || 1)) * 500 : height
+		this.#riveFile = riveFile
+		this.#playActionTrigger = triggerMap.playAction
+		this.#stopActionTrigger = triggerMap.stopAction
+	}
 
-    connectedCallback() {}
+	connectedCallback() {}
 
 	async load(
 		params: Parameters<GraphicsAPI.Graphic['load']>[0]
@@ -47,8 +42,8 @@ class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
 				this.#canvas.width = this.#width
 				this.#canvas.height = this.#height
 				this.#canvas.style.outline = '1px solid #fff'
-                this.#canvas.style.background =
-                    'repeating-conic-gradient(#808080 0 25%, #0000 0 50%) 50% / 20px 20px'
+				this.#canvas.style.background =
+					'repeating-conic-gradient(#808080 0 25%, #0000 0 50%) 50% / 20px 20px'
 				this.shadowRoot?.appendChild(this.#canvas)
 
 				this.#riveInstance = new Rive({
@@ -96,85 +91,72 @@ class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
 		return { statusCode: 200 }
 	}
 
-    #setInstancePropertyValues(
-        vmi: ViewModelInstance,
-        data: Record<string, unknown>,
-    ) {
-        for (let key in data) {
-            const type = vmi.properties.find((p) => p.name === key)?.type
+	#setInstancePropertyValues(vmi: ViewModelInstance, data: Record<string, unknown>) {
+		for (let key in data) {
+			const type = vmi.properties.find((p) => p.name === key)?.type
 
-            if (!type) {
-                throw new Error(`Property ${key} not found in Rive file.`)
-            }
+			if (!type) {
+				throw new Error(`Property ${key} not found in Rive file.`)
+			}
 
-            switch (type) {
-                /* @ts-expect-error - Rive's DataType is bugged */
-                case 'string':
-                    vmi.string(key)!.value = data[key] as string
-                    break
-                /* @ts-expect-error - Rive's DataType is bugged */
-                case 'number':
-                    vmi.number(key)!.value = data[key] as number
-                    break
-                /* @ts-expect-error - Rive's DataType is bugged */
-                case 'boolean':
-                    vmi.boolean(key)!.value = data[key] as boolean
-                    break
-                /* @ts-expect-error - Rive's DataType is bugged */
-                case 'color':
-                    vmi.color(key)!.value = data[key] as number
-                    break
-                /* @ts-expect-error - Rive's DataType is bugged */
-                case 'enum':
-                    vmi.enum(key)!.value = data[key] as string
-                    break
-                /* @ts-expect-error - Rive's DataType is bugged */
-                case 'list':
-                    const items = data[key] as Record<string, unknown>[]
-                    const list = vmi.list(key)!
-                    // TODO: REMOVE THE HARDCODED VM NAME ASAP
-                    const vmName = list.instanceAt(0)?.viewModel.name || 'BarVM'
+			switch (type) {
+				case DataType.string:
+					vmi.string(key)!.value = data[key] as string
+					break
+				case DataType.number:
+					vmi.number(key)!.value = data[key] as number
+					break
+				case DataType.boolean:
+					vmi.boolean(key)!.value = data[key] as boolean
+					break
+				case DataType.color:
+					vmi.color(key)!.value = data[key] as number
+					break
+				case DataType.enumType:
+					vmi.enum(key)!.value = data[key] as string
+					break
+				case DataType.list:
+					const items = data[key] as Record<string, unknown>[]
+					const list = vmi.list(key)!
+					// TODO: REMOVE THE HARDCODED VM NAME ASAP
+					const vmName = list.instanceAt(0)?.viewModel.name || 'BarVM'
 
-                    if (!this.#riveInstance) {
-                        throw new Error('Rive instance not available.')
-                    }
+					if (!this.#riveInstance) {
+						throw new Error('Rive instance not available.')
+					}
 
-                    if (!Array.isArray(items)) {
-                        throw new Error(
-                            `Expected an array for property ${key}.`,
-                        )
-                    }
+					if (!Array.isArray(items)) {
+						throw new Error(`Expected an array for property ${key}.`)
+					}
 
-                    if (!vmName) {
-                        throw new Error(`ViewModel for list ${key} not found.`)
-                    }
+					if (!vmName) {
+						throw new Error(`ViewModel for list ${key} not found.`)
+					}
 
-                    const vm = this.#riveInstance.viewModelByName(vmName)
+					const vm = this.#riveInstance.viewModelByName(vmName)
 
-                    if (!vm) {
-                        throw new Error(`ViewModel for list ${key} not found.`)
-                    }
+					if (!vm) {
+						throw new Error(`ViewModel for list ${key} not found.`)
+					}
 
-                    // Clear the list
-                    while (list.length > 0) {
-                        list.removeInstanceAt(0)
-                    }
+					// Clear the list
+					while (list.length > 0) {
+						list.removeInstanceAt(0)
+					}
 
-                    // Repopulate the list with the new data
-                    items.forEach((item) => {
-                        const instance = vm.instance()!
-                        this.#setInstancePropertyValues(instance, item)
-                        list.addInstance(instance)
-                    })
+					// Repopulate the list with the new data
+					items.forEach((item) => {
+						const instance = vm.instance()
+						this.#setInstancePropertyValues(instance, item)
+						list.addInstance(instance)
+					})
 
-                    break
-                default:
-                    throw new Error(
-                        `WIP: Unsupported property type for ${key}.`,
-                    )
-            }
-        }
-    }
+					break
+				default:
+					throw new Error(`WIP: Unsupported property type for ${key}.`)
+			}
+		}
+	}
 
 	async updateAction(
 		params: Parameters<GraphicsAPI.Graphic['updateAction']>[0]
@@ -192,8 +174,8 @@ class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
 				throw new Error('Data must be a non-null object.')
 			}
 
-            const data = params.data as Record<string, unknown>
-            this.#setInstancePropertyValues(this.#vmi, data)
+			const data = params.data as Record<string, unknown>
+			this.#setInstancePropertyValues(this.#vmi, data)
 
 			return { statusCode: 200 }
 		} catch (error) {

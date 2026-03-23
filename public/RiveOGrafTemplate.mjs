@@ -2,7 +2,7 @@ class RiveOGrafTemplate extends HTMLElement {
 	#canvas
 	#currentStep = 0
 
-    /* === REPLACED VARIABLES === */
+	/* === REPLACED VARIABLES === */
 	#width = 500
 	#height = 500
 	#playActionTrigger = '${PLAY_ACTION_TRIGGER}'
@@ -11,7 +11,7 @@ class RiveOGrafTemplate extends HTMLElement {
 
 	/* === RIVE-SPECIFIC VARIABLES === */
 	#hasRiveScriptLoaded
-    #riveInstance
+	#riveInstance
 	#vmi
 
 	constructor() {
@@ -19,7 +19,7 @@ class RiveOGrafTemplate extends HTMLElement {
 		this.attachShadow({ mode: 'open' })
 		this.#canvas = document.createElement('canvas')
 
-        // TODO: Find a way to bundle the Rive runtime with the graphic instead of loading from CDN
+		// TODO: Find a way to bundle the Rive runtime with the graphic instead of loading from CDN
 		const script = document.createElement('script')
 		script.src = 'https://unpkg.com/@rive-app/webgl@2.35.0'
 		this.#hasRiveScriptLoaded = new Promise((resolve) => {
@@ -65,11 +65,9 @@ class RiveOGrafTemplate extends HTMLElement {
 						this.#vmi = this.#riveInstance.viewModelInstance
 						console.log('%c☑️ Rive loaded.', 'color: #8368cb; font-weight: bold;')
 
-                        if (params.data) {
-                            return resolve(
-                                this.updateAction({ data: params.data }),
-                            )
-                        }
+						if (params.data) {
+							return resolve(this.updateAction({ data: params.data }))
+						}
 
 						return resolve({ statusCode: 200 })
 					},
@@ -92,82 +90,72 @@ class RiveOGrafTemplate extends HTMLElement {
 		return { statusCode: 200 }
 	}
 
-    #setInstancePropertyValues(vmi, data) {
-        for (let key in data) {
-            const type = vmi.properties.find((p) => p.name === key)?.type
+	#setInstancePropertyValues(vmi, data) {
+		for (let key in data) {
+			const type = vmi.properties.find((p) => p.name === key)?.type
 
-            if (!type) {
-                throw new Error(`Property ${key} not found in Rive file.`)
-            }
+			if (!type) {
+				throw new Error(`Property ${key} not found in Rive file.`)
+			}
 
-            switch (type) {
-                /* @ts-expect-error - Rive's DataType is bugged */
-                case 'string':
-                    vmi.string(key).value = data[key]
-                    break
-                /* @ts-expect-error - Rive's DataType is bugged */
-                case 'number':
-                    vmi.number(key).value = data[key]
-                    break
-                /* @ts-expect-error - Rive's DataType is bugged */
-                case 'boolean':
-                    vmi.boolean(key).value = data[key]
-                    break
-                /* @ts-expect-error - Rive's DataType is bugged */
-                case 'color':
-                    vmi.color(key).value = data[key]
-                    break
-                /* @ts-expect-error - Rive's DataType is bugged */
-                case 'enum':
-                    vmi.enum(key).value = data[key]
-                    break
-                /* @ts-expect-error - Rive's DataType is bugged */
-                case 'list':
-                    const items = data[key]
-                    const list = vmi.list(key)
-                    // TODO: REMOVE THE HARDCODED VM NAME ASAP
-                    const vmName = list.instanceAt(0)?.viewModel.name || 'BarVM'
+			switch (type) {
+				case 'string':
+					vmi.string(key).value = data[key]
+					break
+				case 'number':
+					vmi.number(key).value = data[key]
+					break
+				case 'boolean':
+					vmi.boolean(key).value = data[key]
+					break
+				case 'color':
+					vmi.color(key).value = data[key]
+					break
+				case 'enumType':
+					vmi.enum(key).value = data[key]
+					break
+				case 'list':
+					const items = data[key]
+					const list = vmi.list(key)
+					// TODO: REMOVE THE HARDCODED VM NAME ASAP
+					const vmName = list.instanceAt(0)?.viewModel.name || 'BarVM'
 
-                    if (!this.#riveInstance) {
-                        throw new Error('Rive instance not available.')
-                    }
+					if (!this.#riveInstance) {
+						throw new Error('Rive instance not available.')
+					}
 
-                    if (!Array.isArray(items)) {
-                        throw new Error(
-                            `Expected an array for property ${key}.`,
-                        )
-                    }
+					if (!Array.isArray(items)) {
+						throw new Error(`Expected an array for property ${key}.`)
+					}
 
-                    if (!vmName) {
-                        throw new Error(`ViewModel for list ${key} not found.`)
-                    }
+					if (!vmName) {
+						throw new Error(`ViewModel for list ${key} not found.`)
+					}
 
-                    const vm = this.#riveInstance.viewModelByName(vmName)
+					const vm = this.#riveInstance.viewModelByName(vmName)
 
-                    if (!vm) {
-                        throw new Error(`ViewModel for list ${key} not found.`)
-                    }
+					if (!vm) {
+						throw new Error(`ViewModel for list ${key} not found.`)
+					}
 
-                    // Clear the list
-                    while (list.length > 0) {
-                        list.removeInstanceAt(0)
-                    }
+					// Clear the list
+					while (list.length > 0) {
+						list.removeInstanceAt(0)
+					}
 
-                    // Repopulate the list with the new data
-                    items.forEach((item) => {
-                        const instance = vm.instance()
-                        this.#setInstancePropertyValues(instance, item)
-                        list.addInstance(instance)
-                    })
+					// Repopulate the list with the new data
+					items.forEach((item) => {
+						const instance = vm.instance()
+						this.#setInstancePropertyValues(instance, item)
+						list.addInstance(instance)
+					})
 
-                    break
-                default:
-                    throw new Error(
-                        `WIP: Unsupported property type for ${key}.`,
-                    )
-            }
-        }
-    }
+					break
+				default:
+					throw new Error(`WIP: Unsupported property type for ${key}.`)
+			}
+		}
+	}
 
 	async updateAction(params) {
 		if (!this.#riveInstance) {
@@ -183,7 +171,7 @@ class RiveOGrafTemplate extends HTMLElement {
 				throw new Error('Data must be a non-null object.')
 			}
 
-            this.#setInstancePropertyValues(this.#vmi, params.data)
+			this.#setInstancePropertyValues(this.#vmi, params.data)
 
 			return { statusCode: 200 }
 		} catch (error) {

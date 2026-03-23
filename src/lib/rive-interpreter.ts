@@ -1,4 +1,4 @@
-import { Rive, RiveFile, ViewModelInstance } from '@rive-app/webgl2'
+import { DataType, Rive, RiveFile, ViewModelInstance } from '@rive-app/webgl2'
 import type { ViewModelProperty } from '@rive-app/webgl2/rive_advanced.mjs'
 import type { GraphicsManifest } from 'ograf'
 import RiveOGrafTemplate from './RiveOGrafTemplate'
@@ -18,14 +18,14 @@ export interface TriggerMap {
 }
 
 export default class RiveInterpreter {
-    #buffer: ArrayBuffer
-    #canvas: OffscreenCanvas
-    #riveFile?: RiveFile
-    #riveInstance?: Rive
-    #isInstanceLoaded: boolean = false
-    #onFileLoad?: (triggers: string[]) => void
-    #artboardHeight: number = 0
-    #artboardWidth: number = 0
+	#buffer: ArrayBuffer
+	#canvas: OffscreenCanvas
+	#riveFile?: RiveFile
+	#riveInstance?: Rive
+	#isInstanceLoaded: boolean = false
+	#onFileLoad?: (triggers: string[]) => void
+	#artboardHeight: number = 0
+	#artboardWidth: number = 0
 
 	constructor(options: RiveInterpreterOptions) {
 		if (!options.src && !options.buffer) {
@@ -43,35 +43,32 @@ export default class RiveInterpreter {
 		this.loadRiveFile(options.buffer ?? options.src)
 	}
 
-    async loadRiveFile(src: string | ArrayBuffer) {
-        const loadMethod =
-            src instanceof ArrayBuffer ? { buffer: src } : { src }
-        const file = new RiveFile({
-            ...loadMethod,
-            onLoad: (e) => {
-                this.#riveFile = file
-                this.#riveInstance = new Rive({
-                    riveFile: file,
-                    canvas: this.#canvas,
-                    autoBind: true,
-                    onLoad: () => {
-                        this.#isInstanceLoaded = true
-                        this.#artboardHeight =
-                            this.#riveInstance!.artboardHeight ?? 0
-                        this.#artboardWidth =
-                            this.#riveInstance!.artboardWidth ?? 0
-                        this.#onFileLoad?.(
-                            this.#riveInstance!.viewModelInstance?.properties /* @ts-expect-error - Rive's DataType is bugged */
-                                .filter((prop) => prop.type === 'trigger')
-                                .map((prop) => prop.name) ?? [],
-                        )
-                    },
-                })
-            },
-            onLoadError: (err) => {
-                throw new Error(`Failed to load Rive file: ${err}`)
-            },
-        })
+	async loadRiveFile(src: string | ArrayBuffer) {
+		const loadMethod = src instanceof ArrayBuffer ? { buffer: src } : { src }
+		const file = new RiveFile({
+			...loadMethod,
+			onLoad: (e) => {
+				this.#riveFile = file
+				this.#riveInstance = new Rive({
+					riveFile: file,
+					canvas: this.#canvas,
+					autoBind: true,
+					onLoad: () => {
+						this.#isInstanceLoaded = true
+						this.#artboardHeight = this.#riveInstance!.artboardHeight ?? 0
+						this.#artboardWidth = this.#riveInstance!.artboardWidth ?? 0
+						this.#onFileLoad?.(
+							this.#riveInstance!.viewModelInstance?.properties.filter(
+								(prop) => prop.type === DataType.trigger
+							).map((prop) => prop.name) ?? []
+						)
+					},
+				})
+			},
+			onLoadError: (err) => {
+				throw new Error(`Failed to load Rive file: ${err}`)
+			},
+		})
 
 		try {
 			await file.init()
@@ -82,126 +79,107 @@ export default class RiveInterpreter {
 		}
 	}
 
-    #getInstancePropertyValue(
-        prop: ViewModelProperty,
-        vmi: ViewModelInstance,
-    ): unknown {
-        if (!this.#riveInstance) {
-            throw new Error('Rive instance not initialized yet.')
-        }
+	#getInstancePropertyValue(prop: ViewModelProperty, vmi: ViewModelInstance): unknown {
+		if (!this.#riveInstance) {
+			throw new Error('Rive instance not initialized yet.')
+		}
 
-        switch (prop.type) {
-            /* @ts-expect-error */
-            case 'boolean':
-                return vmi.boolean(prop.name)!.value
-            /* @ts-expect-error */
-            case 'string':
-                return vmi.string(prop.name)!.value
-            /* @ts-expect-error */
-            case 'number':
-                return vmi.number(prop.name)!.value
-            /* @ts-expect-error */
-            case 'color':
-                return vmi.color(prop.name)!.value
-            /* @ts-expect-error */
-            case 'enum':
-                return vmi.enum(prop.name)!.value
-            /* @ts-expect-error */
-            case 'list':
-                const list = vmi.list(prop.name)!
-                const listCount = list.length
-                const instances = Array.from(
-                    { length: listCount },
-                    (_, i) => vmi.list(prop.name)!.instanceAt(i)!,
-                )
-                return instances.map((instance) => {
-                    const instanceProps = instance.properties
-                    return instanceProps.reduce(
-                        (obj, instanceProp) => {
-                            obj[instanceProp.name] =
-                                this.#getInstancePropertyValue(
-                                    instanceProp,
-                                    instance,
-                                )
-                            return obj
-                        },
-                        {} as Record<string, unknown>,
-                    )
-                })
-            default:
-                // Includes triggers since they have no value
-                return undefined
-        }
-    }
+		switch (prop.type) {
+			case DataType.boolean:
+				return vmi.boolean(prop.name)!.value
+			case DataType.string:
+				return vmi.string(prop.name)!.value
+			case DataType.number:
+				return vmi.number(prop.name)!.value
+			case DataType.color:
+				return vmi.color(prop.name)!.value
+			case DataType.enumType:
+				return vmi.enum(prop.name)!.value
+			case DataType.list:
+				const list = vmi.list(prop.name)!
+				const listCount = list.length
+				const instances = Array.from(
+					{ length: listCount },
+					(_, i) => vmi.list(prop.name)!.instanceAt(i)!
+				)
+				return instances.map((instance) => {
+					const instanceProps = instance.properties
+					return instanceProps.reduce(
+						(obj, instanceProp) => {
+							obj[instanceProp.name] = this.#getInstancePropertyValue(instanceProp, instance)
+							return obj
+						},
+						{} as Record<string, unknown>
+					)
+				})
+			default:
+				// Includes triggers since they have no value
+				return undefined
+		}
+	}
 
-    #generateSchemaForViewModel(vmi: ViewModelInstance) {
-        const schema: GraphicsManifest['schema'] = {
-            type: 'object',
-            properties: {},
-        }
-        const properties = vmi.properties
+	#generateSchemaForViewModel(vmi: ViewModelInstance) {
+		const schema: GraphicsManifest['schema'] = {
+			type: 'object',
+			properties: {},
+		}
+		const properties = vmi.properties
 
-        properties.forEach((prop) => {
-            /* @ts-expect-error - Rive's DataType is bugged */
-            if (prop.type === 'trigger') {
-                // Triggers get converted to actions and are not in the schema
-                return
-            }
+		properties.forEach((prop) => {
+			if (prop.type === DataType.trigger) {
+				// Triggers get converted to actions and are not in the schema
+				return
+			}
 
-            /* @ts-expect-error - Rive's DataType is bugged */
-            if (prop.type === 'list') {
-                if (!vmi.list(prop.name)?.instanceAt(0)) {
-                    throw new Error(
-                        `List property ${prop.name} has no instances, cannot generate schema.`,
-                    )
-                }
+			if (prop.type === DataType.list) {
+				if (!vmi.list(prop.name)?.instanceAt(0)) {
+					throw new Error(`List property ${prop.name} has no instances, cannot generate schema.`)
+				}
 
-                schema.properties![prop.name] = {
-                    type: 'array',
-                    title: prop.name,
-                    description: `Auto-generated property for ${prop.name}`,
-                    items: this.#generateSchemaForViewModel(
-                        // An assumption is made here that all instances in the list use the same ViewModel,
-                        // which is not enforced by Rive but should be true for our use cases
-                        vmi.list(prop.name)!.instanceAt(0)!,
-                    ),
-                    default: this.#getInstancePropertyValue(prop, vmi),
-                }
+				schema.properties![prop.name] = {
+					type: 'array',
+					title: prop.name,
+					description: `Auto-generated property for ${prop.name}`,
+					items: this.#generateSchemaForViewModel(
+						// An assumption is made here that all instances in the list use the same ViewModel,
+						// which is not enforced by Rive but should be true for our use cases
+						vmi.list(prop.name)!.instanceAt(0)!
+					),
+					default: this.#getInstancePropertyValue(prop, vmi),
+				}
 
-                return
-            }
+				return
+			}
 
-            schema.properties![prop.name] = {
-                type: prop.type,
-                title: prop.name,
-                description: `Auto-generated property for ${prop.name}`,
-                default: this.#getInstancePropertyValue(prop, vmi),
-            }
-        })
+			schema.properties![prop.name] = {
+				type: prop.type,
+				title: prop.name,
+				description: `Auto-generated property for ${prop.name}`,
+				default: this.#getInstancePropertyValue(prop, vmi),
+			}
+		})
 
-        return schema
-    }
+		return schema
+	}
 
-    async createManifest(
-        triggerMap: TriggerMap,
-        metadata: {
-            name: string
-            description?: string
-            id: string
-            version: string
-            author?: {
-                name: string
-                email?: string
-                url?: string
-            }
-            stepCount: number
-        },
-    ): Promise<GraphicsManifest> {
-        try {
-            const template: GraphicsManifest = await (
-                await fetch('./manifest.ograf.json')
-            ).json()
-            const properties = this.#riveInstance?.viewModelInstance?.properties
+	async createManifest(
+		triggerMap: TriggerMap,
+		metadata: {
+			name: string
+			description?: string
+			id: string
+			version: string
+			author?: {
+				name: string
+				email?: string
+				url?: string
+			}
+			stepCount: number
+		}
+	): Promise<GraphicsManifest> {
+		try {
+			const template: GraphicsManifest = await (await fetch('./manifest.ograf.json')).json()
+			const properties = this.#riveInstance?.viewModelInstance?.properties
 
 			if (!properties) {
 				throw new Error('Could not create manifest: Rive instance properties not available.')
@@ -209,31 +187,25 @@ export default class RiveInterpreter {
 
 			const manifest: GraphicsManifest = { ...template, ...metadata }
 
-            manifest.customActions = []
-            manifest[__MANIFEST_VERSION_KEY__] = __VERSION__
-            manifest.schema = this.#generateSchemaForViewModel(
-                this.#riveInstance!.viewModelInstance!,
-            )
+			manifest.customActions = []
+			manifest[__MANIFEST_VERSION_KEY__] = __VERSION__
+			manifest.schema = this.#generateSchemaForViewModel(this.#riveInstance!.viewModelInstance!)
 
-            // Handle triggers
-            properties.forEach((prop) => {
-                if (
-                    prop.name === triggerMap.playAction ||
-                    prop.name === triggerMap.stopAction
-                ) {
-                    return
-                }
+			// Handle triggers
+			properties.forEach((prop) => {
+				if (prop.name === triggerMap.playAction || prop.name === triggerMap.stopAction) {
+					return
+				}
 
-                /* @ts-expect-error - Rive's DataType is bugged */
-                if (prop.type === 'trigger') {
-                    manifest.customActions!.push({
-                        id: prop.name,
-                        name: prop.name,
-                        description: `Auto-generated custom action for ${prop.name}`,
-                    })
-                    return
-                }
-            })
+				if (prop.type === DataType.trigger) {
+					manifest.customActions!.push({
+						id: prop.name,
+						name: prop.name,
+						description: `Auto-generated custom action for ${prop.name}`,
+					})
+					return
+				}
+			})
 
 			return manifest
 		} catch (e) {
@@ -241,26 +213,23 @@ export default class RiveInterpreter {
 		}
 	}
 
-    createTestTemplate(triggerMap: TriggerMap): RiveOGrafTemplate {
-        if (!this.#riveFile || !this.#isInstanceLoaded) {
-            throw new Error('Rive file not loaded yet.')
-        }
+	createTestTemplate(triggerMap: TriggerMap): RiveOGrafTemplate {
+		if (!this.#riveFile || !this.#isInstanceLoaded) {
+			throw new Error('Rive file not loaded yet.')
+		}
 
-        return new RiveOGrafTemplate(
-            this.#riveFile,
-            this.#artboardWidth,
-            this.#artboardHeight,
-            triggerMap,
-        )
-    }
+		return new RiveOGrafTemplate(
+			this.#riveFile,
+			this.#artboardWidth,
+			this.#artboardHeight,
+			triggerMap
+		)
+	}
 
-    async createOGrafPackage(
-        manifest: GraphicsManifest,
-        triggerMap: TriggerMap,
-    ) {
-        if (!this.#riveFile || !this.#isInstanceLoaded) {
-            throw new Error('Rive file not loaded yet.')
-        }
+	async createOGrafPackage(manifest: GraphicsManifest, triggerMap: TriggerMap) {
+		if (!this.#riveFile || !this.#isInstanceLoaded) {
+			throw new Error('Rive file not loaded yet.')
+		}
 
 		const res = await fetch('./RiveOGrafTemplate.mjs')
 		const template = await res.text()
