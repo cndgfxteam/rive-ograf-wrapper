@@ -66,9 +66,9 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 500px;
-		max-width: 100%;
-		height: 200px;
+		margin: auto;
+		aspect-ratio: 16 / 9;
+		max-height: 100%;
 		border: 1px solid oklch(from currentColor l c h / 0.1);
 		border-radius: 4px;
 		font-weight: 500;
