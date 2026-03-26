@@ -1,4 +1,4 @@
-import { Rive, type ViewModelInstance, type RiveFile, DataType } from '@rive-app/webgl2'
+import { DataType, Rive, type RiveFile, type ViewModelInstance } from '@rive-app/webgl2'
 import { GraphicsAPI, type ReturnPayload } from 'ograf'
 import type { TriggerMap } from './rive-interpreter'
 
@@ -12,16 +12,18 @@ class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
 	#vmi: ViewModelInstance | undefined
 	#playActionTrigger: string
 	#stopActionTrigger: string
+	#resizeHandler: () => void
 
 	constructor(riveFile: RiveFile, width: number, height: number, triggerMap: TriggerMap) {
 		super()
 		this.attachShadow({ mode: 'open' })
 		this.#canvas = document.createElement('canvas')
-		this.#width = width > 500 ? 500 : width
-		this.#height = width > 500 ? (height / (width || 1)) * 500 : height
+		this.#width = width
+		this.#height = height
 		this.#riveFile = riveFile
 		this.#playActionTrigger = triggerMap.playAction
 		this.#stopActionTrigger = triggerMap.stopAction
+		this.#resizeHandler = () => {}
 	}
 
 	connectedCallback() {}
@@ -55,6 +57,11 @@ class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
 					onLoad: async () => {
 						this.#riveInstance!.resizeDrawingSurfaceToCanvas()
 
+						this.#resizeHandler = () => {
+							this.#riveInstance!.resizeDrawingSurfaceToCanvas()
+						}
+						window.addEventListener('resize', this.#resizeHandler)
+
 						if (!this.#riveInstance!.viewModelInstance) {
 							return resolve({
 								statusCode: 500,
@@ -86,6 +93,7 @@ class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
 			this.#riveInstance.cleanup()
 			this.#vmi = undefined
 			this.#riveInstance = undefined
+			window.removeEventListener('resize', this.#resizeHandler)
 		}
 
 		return { statusCode: 200 }

@@ -1,8 +1,8 @@
 import { DataType, Rive, RiveFile, ViewModelInstance } from '@rive-app/webgl2'
 import type { ViewModelProperty } from '@rive-app/webgl2/rive_advanced.mjs'
+import JSZip from 'jszip'
 import type { GraphicsManifest } from 'ograf'
 import RiveOGrafTemplate from './RiveOGrafTemplate'
-import JSZip from 'jszip'
 
 type RiveInterpreterOptions = (
 	| { src: string; buffer?: never }
@@ -213,15 +213,15 @@ export default class RiveInterpreter {
 		}
 	}
 
-	createTestTemplate(triggerMap: TriggerMap): RiveOGrafTemplate {
+	createTestTemplate(triggerMap: TriggerMap, width?: number, height?: number): RiveOGrafTemplate {
 		if (!this.#riveFile || !this.#isInstanceLoaded) {
 			throw new Error('Rive file not loaded yet.')
 		}
 
 		return new RiveOGrafTemplate(
 			this.#riveFile,
-			this.#artboardWidth,
-			this.#artboardHeight,
+			width ?? this.#artboardWidth,
+			height ?? this.#artboardHeight,
 			triggerMap
 		)
 	}

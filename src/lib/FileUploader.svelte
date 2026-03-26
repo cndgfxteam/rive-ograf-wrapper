@@ -2,6 +2,7 @@
 	let { accept, onFile } = $props()
 
 	let dropZone: HTMLLabelElement
+	let isDragOverActive = $state(false)
 
 	function onDrop(e: DragEvent) {
 		e.preventDefault()
@@ -33,6 +34,8 @@
 		} else {
 			e.dataTransfer!.dropEffect = 'none'
 		}
+
+		isDragOverActive = true
 	}
 
 	function onWindowDragOver(e: DragEvent) {
@@ -56,33 +59,20 @@
 	ondragover={onWindowDragOver}
 />
 
-<label bind:this={dropZone} ondrop={onDrop} ondragover={onDropZoneDragOver} class="drop-zone">
+<label
+	bind:this={dropZone}
+	ondrop={onDrop}
+	ondragover={onDropZoneDragOver}
+	ondragleave={() => (isDragOverActive = false)}
+	class={{
+		'mx-auto grid aspect-video max-h-full cursor-pointer place-items-center rounded-field border border-base-300 font-medium text-base-content hover:bg-base-100 focus:bg-base-100': true,
+		'bg-base-200': !isDragOverActive,
+		'bg-base-100 inset-shadow-sm/50': isDragOverActive,
+	}}
+>
 	Drop .riv file here, or click to upload
-	<input type="file" {accept} onchange={(e) => onFile(e.currentTarget!.files![0])} />
+	<input type="file" class="hidden" {accept} onchange={(e) => onFile(e.currentTarget!.files![0])} />
 </label>
 
 <style>
-	.drop-zone {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		margin: auto;
-		aspect-ratio: 16 / 9;
-		max-height: 100%;
-		border: 1px solid oklch(from currentColor l c h / 0.1);
-		border-radius: 4px;
-		font-weight: 500;
-		color: oklch(from currentColor l c h / 0.8);
-		cursor: pointer;
-
-		&:hover,
-		&:focus {
-			border-color: oklch(from currentColor l c h / 0.2);
-			background-color: oklch(from currentColor l c h / 0.05);
-		}
-
-		input[type='file'] {
-			display: none;
-		}
-	}
 </style>

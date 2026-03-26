@@ -12,6 +12,8 @@
 
 	const context = setAppContext(new AppContext())
 	let innerWidth = $state(0)
+	let previewWidth = $state(0)
+	let previewHeight = $state(0)
 	let status = $state('No file uploaded')
 	let statusType = $state<'error' | 'success' | 'warn' | 'info'>('error')
 	let interpreter: RiveInterpreter | undefined = $state()
@@ -57,7 +59,11 @@
 			return
 		}
 
-		context.graphic = interpreter.createTestTemplate(actionsToTriggersMap)
+		const limitingDimension = previewWidth / previewHeight < 16 / 9 ? 'w' : 'h'
+		const w = limitingDimension === 'w' ? previewWidth : previewHeight * (16 / 9)
+		const h = limitingDimension === 'h' ? previewHeight : previewWidth / (16 / 9)
+
+		context.graphic = interpreter.createTestTemplate(actionsToTriggersMap, w, h)
 
 		await context.graphic.load({
 			renderType: 'realtime',
@@ -114,18 +120,18 @@
 <svelte:window bind:innerWidth />
 
 <div
-	class="grid h-screen grid-cols-1 grid-rows-[auto_minmax(290px,1fr)_auto_3fr_auto] lg:grid-cols-[minmax(300px,1fr)_2fr] lg:grid-rows-[auto_2fr_1fr_auto]"
+	class="grid h-screen grid-cols-1 grid-rows-[auto_minmax(290px,1fr)_auto_3fr_auto] lg:grid-cols-[minmax(300px,1fr)_2fr] lg:grid-rows-[auto_minmax(0,2fr)_1fr_auto]"
 >
 	<header class="col-span-full bg-base-300 px-2">
 		<h1 class="text-lg font-semibold [font-variant:small-caps] lg:text-2xl">Rive OGraf Wrapper</h1>
 	</header>
 
 	<!-- Page content here -->
-	<div class="p-4 lg:col-2">
+	<div class="place-content-center bg-(image:--stripes) p-4 lg:col-2">
 		{#if !context.hasUploadedFile}
 			<FileUploader accept=".riv" onFile={handleRivFile} />
 		{:else}
-			<GraphicPreview />
+			<GraphicPreview bind:previewWidth bind:previewHeight />
 		{/if}
 	</div>
 
