@@ -213,17 +213,12 @@ export default class RiveInterpreter {
 		}
 	}
 
-	createTestTemplate(triggerMap: TriggerMap, width?: number, height?: number): RiveOGrafTemplate {
+	createTestTemplate(triggerMap: TriggerMap): RiveOGrafTemplate {
 		if (!this.#riveFile || !this.#isInstanceLoaded) {
 			throw new Error('Rive file not loaded yet.')
 		}
 
-		return new RiveOGrafTemplate(
-			this.#riveFile,
-			width ?? this.#artboardWidth,
-			height ?? this.#artboardHeight,
-			triggerMap
-		)
+		return new RiveOGrafTemplate(this.#riveFile, triggerMap)
 	}
 
 	async createOGrafPackage(manifest: GraphicsManifest, triggerMap: TriggerMap) {

@@ -1,10 +1,21 @@
 import { GraphicsAPI } from 'ograf'
 import { createContext } from 'svelte'
+import type { TriggerMap } from './rive-interpreter'
 
 export class AppContext {
 	#hasUploadedFile = $state(false)
 	#isPreviewing = $state(false)
 	#graphic = $state<HTMLElement & GraphicsAPI.Graphic>()
+	#playActionTrigger = $state('')
+	#stopActionTrigger = $state('')
+	#triggers = $state<string[]>([])
+	#triggerMap = $derived<TriggerMap>({
+		playAction: this.#playActionTrigger,
+		stopAction: this.#stopActionTrigger,
+		customActions: this.#triggers.filter(
+			(t) => t !== this.#playActionTrigger && t !== this.#stopActionTrigger
+		),
+	})
 
 	get hasUploadedFile() {
 		return this.#hasUploadedFile
@@ -25,6 +36,31 @@ export class AppContext {
 	}
 	set graphic(value: (HTMLElement & GraphicsAPI.Graphic) | undefined) {
 		this.#graphic = value
+	}
+
+	get playActionTrigger() {
+		return this.#playActionTrigger
+	}
+	set playActionTrigger(value: string) {
+		this.#playActionTrigger = value
+	}
+
+	get stopActionTrigger() {
+		return this.#stopActionTrigger
+	}
+	set stopActionTrigger(value: string) {
+		this.#stopActionTrigger = value
+	}
+
+	get triggers() {
+		return this.#triggers
+	}
+	set triggers(value: string[]) {
+		this.#triggers = value
+	}
+
+	get triggerMap() {
+		return this.#triggerMap
 	}
 
 	constructor() {}

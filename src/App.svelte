@@ -1,10 +1,12 @@
 <script lang="ts">
+	import GraphicPreviewControls from './GraphicPreviewControls.svelte'
+
 	import type { GraphicsManifest } from 'ograf'
 	import './app.css'
 	import { AppContext, setAppContext } from './lib/context.svelte'
 	import FileUploader from './lib/FileUploader.svelte'
 	import GraphicPreview from './lib/GraphicPreview.svelte'
-	import RiveInterpreter, { type TriggerMap } from './lib/rive-interpreter'
+	import RiveInterpreter from './lib/rive-interpreter'
 	import StatusBar from './lib/StatusBar.svelte'
 
 	const DEFAULT_DESCRIPTION =
@@ -12,24 +14,10 @@
 
 	const context = setAppContext(new AppContext())
 	let innerWidth = $state(0)
-	let previewWidth = $state(0)
-	let previewHeight = $state(0)
 	let status = $state('No file uploaded')
 	let statusType = $state<'error' | 'success' | 'warn' | 'info'>('error')
 	let interpreter: RiveInterpreter | undefined = $state()
 	let manifest: GraphicsManifest | undefined = $state()
-	let playActionTrigger = $state('')
-	let stopActionTrigger = $state('')
-	let triggers = $state<string[]>([])
-
-	const customActionTriggers = $derived(
-		triggers.filter((t) => t !== playActionTrigger && t !== stopActionTrigger)
-	)
-	const actionsToTriggersMap: TriggerMap = $derived({
-		playAction: playActionTrigger,
-		stopAction: stopActionTrigger,
-		customActions: customActionTriggers,
-	})
 
 	async function handleRivFile(file: File) {
 		if (!file.name.endsWith('.riv')) {
@@ -43,10 +31,10 @@
 
 		interpreter = new RiveInterpreter({
 			buffer: await file.arrayBuffer(),
-			onFileLoad: async (trigs) => {
+			onFileLoad: async (triggers) => {
 				status = 'ViewModel properties parsed'
 				statusType = 'success'
-				triggers = trigs
+				context.triggers = triggers
 				context.hasUploadedFile = true
 			},
 		})
@@ -59,11 +47,7 @@
 			return
 		}
 
-		const limitingDimension = previewWidth / previewHeight < 16 / 9 ? 'w' : 'h'
-		const w = limitingDimension === 'w' ? previewWidth : previewHeight * (16 / 9)
-		const h = limitingDimension === 'h' ? previewHeight : previewWidth / (16 / 9)
-
-		context.graphic = interpreter.createTestTemplate(actionsToTriggersMap, w, h)
+		context.graphic = interpreter.createTestTemplate(context.triggerMap)
 
 		await context.graphic.load({
 			renderType: 'realtime',
@@ -105,8 +89,8 @@
 				},
 			}
 
-			manifest = await interpreter.createManifest(actionsToTriggersMap, metadata)
-			await interpreter.createOGrafPackage(manifest, actionsToTriggersMap)
+			manifest = await interpreter.createManifest(context.triggerMap, metadata)
+			await interpreter.createOGrafPackage(manifest, context.triggerMap)
 			status = 'OGraf package created! Download initiated.'
 			statusType = 'success'
 		} catch (e) {
@@ -131,48 +115,12 @@
 		{#if !context.hasUploadedFile}
 			<FileUploader accept=".riv" onFile={handleRivFile} />
 		{:else}
-			<GraphicPreview bind:previewWidth bind:previewHeight />
+			<GraphicPreview />
 		{/if}
 	</div>
 
 	<!-- Preview controls -->
-	<details
-		open={innerWidth >= 1024}
-		class="collapse bg-neutral/50 text-neutral-content max-lg:collapse-arrow lg:pointer-events-none"
-	>
-		<summary class="collapse-title text-sm font-medium">Preview Controls</summary>
-
-		<div class="pointer-events-auto collapse-content text-xs">
-			{#if context.isPreviewing}
-				<div>
-					<button
-						class="btn btn-sm btn-primary"
-						onclick={() => {
-							context.graphic?.playAction({})
-						}}>PLAY</button
-					>
-					<button
-						class="btn btn-sm btn-secondary"
-						onclick={() => {
-							context.graphic?.stopAction({})
-						}}>STOP</button
-					>
-				</div>
-				{#each actionsToTriggersMap.customActions as trigger}
-					<div>
-						<h3 class="mt-4 mb-2 text-sm">Custom actions</h3>
-
-						<button
-							class="btn btn-sm"
-							onclick={() => {
-								context.graphic?.customAction({ id: trigger, payload: {} })
-							}}>{trigger.toUpperCase()}</button
-						>
-					</div>
-				{/each}
-			{/if}
-		</div>
-	</details>
+	<GraphicPreviewControls open={innerWidth > 1024} />
 
 	<!-- Sidebar content here -->
 	<div
@@ -203,11 +151,11 @@
 							<select
 								class="select select-sm"
 								name="playActionTrigger"
-								bind:value={playActionTrigger}
+								bind:value={context.playActionTrigger}
 								required
 							>
 								<option value="" selected disabled hidden>Select trigger...</option>
-								{#each triggers as trigger}
+								{#each context.triggers as trigger}
 									<option value={trigger}>{trigger}</option>
 								{/each}
 							</select>
@@ -217,11 +165,11 @@
 							<select
 								class="select select-sm"
 								name="stopActionTrigger"
-								bind:value={stopActionTrigger}
+								bind:value={context.stopActionTrigger}
 								required
 							>
 								<option value="" selected disabled hidden>Select trigger...</option>
-								{#each triggers as trigger}
+								{#each context.triggers as trigger}
 									<option value={trigger}>{trigger}</option>
 								{/each}
 							</select>

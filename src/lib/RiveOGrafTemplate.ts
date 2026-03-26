@@ -5,8 +5,6 @@ import type { TriggerMap } from './rive-interpreter'
 class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
 	#canvas: HTMLCanvasElement
 	#currentStep: number = 0
-	#width: number = 0
-	#height: number = 0
 	#riveFile: RiveFile
 	#riveInstance: Rive | undefined
 	#vmi: ViewModelInstance | undefined
@@ -14,12 +12,10 @@ class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
 	#stopActionTrigger: string
 	#resizeHandler: () => void
 
-	constructor(riveFile: RiveFile, width: number, height: number, triggerMap: TriggerMap) {
+	constructor(riveFile: RiveFile, triggerMap: TriggerMap) {
 		super()
 		this.attachShadow({ mode: 'open' })
 		this.#canvas = document.createElement('canvas')
-		this.#width = width
-		this.#height = height
 		this.#riveFile = riveFile
 		this.#playActionTrigger = triggerMap.playAction
 		this.#stopActionTrigger = triggerMap.stopAction
@@ -27,6 +23,12 @@ class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
 	}
 
 	connectedCallback() {}
+
+	#updateCanvasSize() {
+		this.#canvas.width = this.clientWidth / devicePixelRatio
+		this.#canvas.height = this.clientHeight / devicePixelRatio
+		this.#riveInstance?.resizeDrawingSurfaceToCanvas()
+	}
 
 	async load(
 		params: Parameters<GraphicsAPI.Graphic['load']>[0]
@@ -41,11 +43,6 @@ class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
 			}
 
 			return new Promise<ReturnPayload | undefined>((resolve) => {
-				this.#canvas.width = this.#width
-				this.#canvas.height = this.#height
-				this.#canvas.style.outline = '1px solid #fff'
-				this.#canvas.style.background =
-					'repeating-conic-gradient(#808080 0 25%, #0000 0 50%) 50% / 20px 20px'
 				this.shadowRoot?.appendChild(this.#canvas)
 
 				this.#riveInstance = new Rive({
@@ -55,10 +52,10 @@ class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
 					autoBind: true,
 					stateMachines: 'State Machine 1',
 					onLoad: async () => {
-						this.#riveInstance!.resizeDrawingSurfaceToCanvas()
+						this.#updateCanvasSize()
 
 						this.#resizeHandler = () => {
-							this.#riveInstance!.resizeDrawingSurfaceToCanvas()
+							this.#updateCanvasSize()
 						}
 						window.addEventListener('resize', this.#resizeHandler)
 
