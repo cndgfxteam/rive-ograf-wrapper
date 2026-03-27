@@ -1,8 +1,6 @@
 <script lang="ts">
 	import type { GraphicsManifest } from 'ograf'
 	import './app.css'
-	// @ts-expect-error - parameters makes TS forget this is an image
-	import logo from './assets/images/NEW_CBS_NEWS_LOGO.png?enhanced&w=149&h=20'
 	import GraphicPreviewControls from './GraphicPreviewControls.svelte'
 	import { AppContext, setAppContext } from './lib/context.svelte'
 	import FileUploader from './lib/FileUploader.svelte'
@@ -108,8 +106,13 @@
 	class="grid h-screen grid-cols-1 grid-rows-[auto_minmax(290px,1fr)_auto_3fr_auto] lg:grid-cols-[minmax(300px,1fr)_2fr] lg:grid-rows-[auto_minmax(0,2fr)_1fr_auto]"
 >
 	<header class="col-span-full flex items-center gap-4 bg-base-300 px-2">
-		<enhanced:img src={logo} alt="CBS News Logo" />
-		<h1 class="mt-0.5 text-lg font-thin tracking-widest uppercase lg:text-xl">
+		<enhanced:img
+			src="./assets/images/NEW_CBS_NEWS_LOGO.png?w=149;112"
+			sizes="(min-width:1024px) 149px, (min-width:400px) 112px"
+			alt="CBS News Logo"
+			class="h-3.75 w-auto lg:h-4"
+		/>
+		<h1 class="mt-0.5 text-lg font-light tracking-widest uppercase lg:text-xl">
 			Rive OGraf Wrapper
 		</h1>
 	</header>
