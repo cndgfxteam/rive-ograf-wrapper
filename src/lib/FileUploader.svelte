@@ -65,9 +65,9 @@
 	ondragover={onDropZoneDragOver}
 	ondragleave={() => (isDragOverActive = false)}
 	class={{
-		'mx-auto grid aspect-video max-h-full cursor-pointer place-items-center rounded-field border border-base-300 font-medium text-base-content hover:bg-base-100 focus:bg-base-100': true,
-		'bg-base-200': !isDragOverActive,
-		'bg-base-100 inset-shadow-sm/50': isDragOverActive,
+		'mx-auto grid aspect-video max-h-full cursor-pointer place-items-center rounded-box font-medium text-base-content shadow hover:bg-base-200 focus:bg-base-200': true,
+		'bg-base-300': !isDragOverActive,
+		'bg-base-200 inset-shadow-sm': isDragOverActive,
 	}}
 >
 	Drop .riv file here, or click to upload

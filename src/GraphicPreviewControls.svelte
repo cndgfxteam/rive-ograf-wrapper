@@ -10,10 +10,7 @@
 	const context = getAppContext()
 </script>
 
-<details
-	class="collapse bg-neutral/50 text-neutral-content max-lg:collapse-arrow lg:pointer-events-none"
-	bind:open
->
+<details class="collapse bg-base-100 max-lg:collapse-arrow lg:pointer-events-none" bind:open>
 	<summary class="collapse-title text-sm font-medium">Preview Controls</summary>
 
 	<div class="collapse-content text-xs lg:pointer-events-auto">

@@ -105,7 +105,7 @@
 <div
 	class="grid h-screen grid-cols-1 grid-rows-[auto_minmax(290px,1fr)_auto_3fr_auto] lg:grid-cols-[minmax(300px,1fr)_2fr] lg:grid-rows-[auto_minmax(0,2fr)_1fr_auto]"
 >
-	<header class="col-span-full flex items-center gap-4 bg-base-300 px-2">
+	<header class="z-20 col-span-full flex items-center gap-4 bg-base-300 px-2 shadow">
 		<enhanced:img
 			src="./assets/images/NEW_CBS_NEWS_LOGO.png?w=149;112"
 			sizes="(min-width:1024px) 149px, (min-width:400px) 112px"
@@ -118,7 +118,7 @@
 	</header>
 
 	<!-- Page content here -->
-	<div class="place-content-center bg-(image:--stripes) p-4 lg:col-2">
+	<div class="place-content-center bg-(image:--stripes) p-4 inset-shadow-sm lg:col-2">
 		{#if !context.hasUploadedFile}
 			<FileUploader accept=".riv" onFile={handleRivFile} />
 		{:else}
@@ -131,7 +131,7 @@
 
 	<!-- Sidebar content here -->
 	<div
-		class="overflow-auto border-base-300 bg-base-200 p-4 lg:col-1 lg:row-span-2 lg:row-start-2 lg:border-r"
+		class="z-10 overflow-auto border-base-300 bg-base-200 p-4 shadow lg:col-1 lg:row-span-2 lg:row-start-2 lg:border-r"
 	>
 		{#if context.hasUploadedFile}
 			<form
@@ -339,7 +339,7 @@
 		{/if}
 	</div>
 
-	<footer class="lg:col-span-2">
+	<footer class="z-20 border-t border-base-300 bg-base-200 lg:col-span-2">
 		<StatusBar type={statusType}>{status}</StatusBar>
 	</footer>
 </div>

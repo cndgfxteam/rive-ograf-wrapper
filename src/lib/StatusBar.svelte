@@ -22,7 +22,7 @@
 	let { children, type }: Props = $props()
 </script>
 
-<div class="flex flex-row items-baseline gap-4 border-t border-base-300 bg-base-300 p-2">
+<div class="flex flex-row items-baseline gap-4 p-2">
 	<h2 class="text-sm font-medium uppercase">Status</h2>
 	<div class="flex flex-row items-baseline gap-1 text-xs">
 		<div class="status {STATUS_VARIANTS[type]}"></div>
