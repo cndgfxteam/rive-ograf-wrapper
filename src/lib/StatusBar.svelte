@@ -23,7 +23,7 @@
 </script>
 
 <div class="flex flex-row items-baseline gap-4 border-t border-base-300 bg-base-200 p-2">
-	<h2 class="text-sm font-medium">Status</h2>
+	<h2 class="text-sm font-medium uppercase">Status</h2>
 	<div class="flex flex-row items-baseline gap-1 bg-base-200 text-xs">
 		<div class="status {STATUS_VARIANTS[type]}"></div>
 		<span class={TEXT_VARIANTS[type]}>{@render children()}</span>
