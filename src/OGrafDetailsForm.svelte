@@ -79,7 +79,7 @@
 
 {#if context.hasUploadedFile}
 	<form
-		class="w-full grow"
+		class="grid grid-cols-2 items-center gap-x-4 gap-y-1 text-xs lg:text-sm *:[input,select,textarea]:justify-self-end"
 		onsubmit={(e) => {
 			e.preventDefault()
 			const formData = new FormData(e.currentTarget)
@@ -94,198 +94,131 @@
 			createOGraf(formData)
 		}}
 	>
-		<div class="card my-4 bg-base-200 card-sm">
-			<div class="card-body">
-				<h2 class="card-title">Assign Actions</h2>
-				<label class="flex flex-row items-center justify-between">
-					<span>Play action trigger</span>
-					<select
-						class="select select-sm"
-						name="playActionTrigger"
-						bind:value={context.playActionTrigger}
-						required
-					>
-						<option value="" selected disabled hidden>Select trigger...</option>
-						{#each context.triggers as trigger}
-							<option value={trigger}>{trigger}</option>
-						{/each}
-					</select>
-				</label>
-				<label class="flex flex-row items-center justify-between">
-					<span>Stop action trigger</span>
-					<select
-						class="select select-sm"
-						name="stopActionTrigger"
-						bind:value={context.stopActionTrigger}
-						required
-					>
-						<option value="" selected disabled hidden>Select trigger...</option>
-						{#each context.triggers as trigger}
-							<option value={trigger}>{trigger}</option>
-						{/each}
-					</select>
-				</label>
-			</div>
-		</div>
+		<h2 class="col-span-full text-sm font-medium uppercase lg:text-base">Actions</h2>
+		<label for="playActionTrigger">Play action trigger</label>
+		<select
+			class="select select-xs lg:select-sm"
+			name="playActionTrigger"
+			id="playActionTrigger"
+			bind:value={context.playActionTrigger}
+			required
+		>
+			<option value="" selected disabled hidden>Select trigger...</option>
+			{#each context.triggers as trigger}
+				<option value={trigger}>{trigger}</option>
+			{/each}
+		</select>
+		<label for="stopActionTrigger">Stop action trigger</label>
+		<select
+			class="select select-xs lg:select-sm"
+			name="stopActionTrigger"
+			id="stopActionTrigger"
+			bind:value={context.stopActionTrigger}
+			required
+		>
+			<option value="" selected disabled hidden>Select trigger...</option>
+			{#each context.triggers as trigger}
+				<option value={trigger}>{trigger}</option>
+			{/each}
+		</select>
 
-		<div class="card my-4 bg-base-200 card-sm">
-			<div class="card-body">
-				<h2 class="card-title">Graphic Metadata</h2>
-				<table class="table table-zebra bg-base-100 table-sm">
-					<tbody>
-						<tr>
-							<td><label for="manifest-name">Name</label></td>
+		<h2 class="col-span-full mt-4 text-sm font-medium uppercase lg:text-base">Graphic Metadata</h2>
+		<label for="manifest-name">Name</label>
+		<input
+			class="input input-xs lg:input-sm"
+			type="text"
+			name="manifest-name"
+			id="manifest-name"
+			placeholder="Graphic name"
+			required
+		/>
+		<label for="manifest-description">Description</label>
+		<textarea
+			class="textarea textarea-xs lg:textarea-sm"
+			name="manifest-description"
+			id="manifest-description"
+			placeholder="Brief description (optional)"
+			rows="5">{DEFAULT_DESCRIPTION}</textarea
+		>
+		<label for="manifest-id">ID</label>
+		<input
+			class="input input-xs lg:input-sm"
+			type="text"
+			name="manifest-id"
+			id="manifest-id"
+			placeholder="Unique identifier for this graphic"
+			value="rive-ograf-template"
+			required
+		/>
+		<label for="manifest-version">Version</label>
+		<input
+			class="input input-xs lg:input-sm"
+			type="text"
+			name="manifest-version"
+			id="manifest-version"
+			placeholder="e.g. 1, 1.0.1, v2, etc."
+		/>
+		<label for="manifest-author-name">Author name</label>
+		<input
+			class="input input-xs lg:input-sm"
+			type="text"
+			name="manifest-author-name"
+			id="manifest-author-name"
+			placeholder="Author name"
+		/>
+		<label for="manifest-author-email">Author email</label>
+		<input
+			class="input input-xs lg:input-sm"
+			type="email"
+			id="manifest-author-email"
+			name="manifest-author-email"
+			placeholder="author@example.com"
+		/>
+		<label for="manifest-author-url">Author website</label>
+		<input
+			class="input input-xs lg:input-sm"
+			type="url"
+			id="manifest-author-url"
+			name="manifest-author-url"
+			placeholder="https://example.com"
+		/>
+		<label for="manifest-stepcount">Step count</label>
+		<input
+			class="input input-xs lg:input-sm"
+			type="number"
+			id="manifest-stepcount"
+			name="manifest-stepcount"
+			min="0"
+			value={1}
+			required
+		/>
 
-							<td>
-								<input
-									class="input input-sm"
-									type="text"
-									name="manifest-name"
-									id="manifest-name"
-									placeholder="Graphic name"
-									required
-								/>
-							</td>
-						</tr>
+		<h3 class="col-span-full mt-2 text-xs font-medium uppercase lg:text-sm">
+			Vendor-specific metadata
+		</h3>
 
-						<tr>
-							<td><label for="manifest-description">Description</label></td>
+		<h4 class="col-span-full mt-1 border-b border-base-300 font-light tracking-wider uppercase">
+			Erizos
+		</h4>
+		<label for="vendor-erizos-group">Group</label>
+		<input
+			class="input input-xs lg:input-sm"
+			type="text"
+			name="vendor-erizos-group"
+			id="vendor-erizos-group"
+			placeholder="Group name"
+		/>
 
-							<td>
-								<textarea
-									class="textarea textarea-sm"
-									name="manifest-description"
-									id="manifest-description"
-									placeholder="Brief description (optional)"
-									rows="5">{DEFAULT_DESCRIPTION}</textarea
-								>
-							</td>
-						</tr>
-
-						<tr>
-							<td><label for="manifest-id">ID</label></td>
-
-							<td>
-								<input
-									class="input input-sm"
-									type="text"
-									name="manifest-id"
-									id="manifest-id"
-									placeholder="Unique identifier for this graphic"
-									value="rive-ograf-template"
-									required
-								/>
-							</td>
-						</tr>
-
-						<tr>
-							<td><label for="manifest-version">Version</label></td>
-
-							<td>
-								<input
-									class="input input-sm"
-									type="text"
-									name="manifest-version"
-									id="manifest-version"
-									placeholder="e.g. 1, 1.0.1, v2, etc."
-								/>
-							</td>
-						</tr>
-
-						<tr>
-							<td><label for="manifest-author-name">Author name</label></td>
-
-							<td>
-								<input
-									class="input input-sm"
-									type="text"
-									name="manifest-author-name"
-									id="manifest-author-name"
-									placeholder="Author name"
-								/>
-							</td>
-						</tr>
-
-						<tr>
-							<td><label for="manifest-author-email">Author email</label></td>
-
-							<td>
-								<input
-									class="input input-sm"
-									type="email"
-									id="manifest-author-email"
-									name="manifest-author-email"
-									placeholder="author@example.com"
-								/>
-							</td>
-						</tr>
-
-						<tr>
-							<td><label for="manifest-author-url">Author website</label></td>
-
-							<td>
-								<input
-									class="input input-sm"
-									type="url"
-									id="manifest-author-url"
-									name="manifest-author-url"
-									placeholder="https://example.com"
-								/>
-							</td>
-						</tr>
-
-						<tr>
-							<td><label for="manifest-stepcount">Step count</label></td>
-
-							<td>
-								<input
-									class="input input-sm"
-									type="number"
-									id="manifest-stepcount"
-									name="manifest-stepcount"
-									min="0"
-									value={1}
-									required
-								/>
-							</td>
-						</tr>
-					</tbody>
-				</table>
-
-				<h3 class="text-start text-sm">Vendor settings</h3>
-
-				<table class="table table-zebra bg-base-100 table-sm">
-					<tbody>
-						<tr><th colspan="2">Erizos</th></tr>
-
-						<tr>
-							<td><label for="vendor-erizos-group">Group</label></td>
-
-							<td>
-								<input
-									class="input input-sm"
-									type="text"
-									name="vendor-erizos-group"
-									id="vendor-erizos-group"
-									placeholder="Group name"
-								/>
-							</td>
-						</tr>
-					</tbody>
-				</table>
-			</div>
-		</div>
-
-		<button class="btn mt-2 btn-primary" type="submit"
-			>{context.isPreviewing ? 'LGTM!' : 'Preview'}</button
+		<button class="btn col-start-2 mt-4 justify-self-end btn-primary" type="submit"
+			>{context.isPreviewing ? 'Download' : 'Preview'}</button
 		>
 	</form>
 {/if}
 
 <style>
-	tr:has(input[required]) label::after,
-	label:has([required]) span::after {
+	label:has(+ [required])::after {
 		content: '*';
-		margin-left: 0.25em;
+		margin-left: calc(var(--spacing) / 2);
+		color: var(--color-error);
 	}
 </style>

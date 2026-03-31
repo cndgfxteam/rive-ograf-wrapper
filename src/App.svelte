@@ -30,8 +30,7 @@
 
 		if (!context.hasDownloadedPackage) {
 			return {
-				message:
-					'OGraf package ready. Use controls to preview graphic and click on "LGTM" to download.',
+				message: 'OGraf package ready. Use controls to preview graphic.',
 				type: 'info',
 			}
 		}
@@ -79,9 +78,7 @@
 			alt="CBS News Logo"
 			class="h-3.75 w-auto lg:h-4"
 		/>
-		<h1 class="mt-0.5 text-lg font-light tracking-widest uppercase lg:text-xl">
-			Rive OGraf Wrapper
-		</h1>
+		<h1 class="mt-0.5 text-lg uppercase lg:text-xl">Rive OGraf Wrapper</h1>
 	</header>
 
 	<!-- Graphic preview / File upload -->
