@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { ComponentProps } from 'svelte'
 	import './app.css'
 	import GraphicPreviewControls from './GraphicPreviewControls.svelte'
 	import { AppContext, setAppContext } from './lib/context.svelte'
@@ -8,11 +9,35 @@
 	import StatusBar from './lib/StatusBar.svelte'
 	import OGrafDetailsForm from './OGrafDetailsForm.svelte'
 
+	type Status = {
+		message: string
+		type: ComponentProps<typeof StatusBar>['type']
+	}
+
 	const context = setAppContext(new AppContext())
+
 	let innerWidth = $state(0)
-	let status = $state('No file uploaded')
-	let statusType = $state<'error' | 'success' | 'warn' | 'info'>('error')
 	let interpreter: RiveInterpreter | undefined = $state()
+
+	const status = $derived.by<Status>(() => {
+		if (!context.hasUploadedFile) {
+			return { message: 'Please upload a file', type: 'error' }
+		}
+
+		if (!context.isPreviewing) {
+			return { message: 'File parsed! Assign properties to preview graphic.', type: 'success' }
+		}
+
+		if (!context.hasDownloadedPackage) {
+			return {
+				message:
+					'OGraf package ready. Use controls to preview graphic and click on "LGTM" to download.',
+				type: 'info',
+			}
+		}
+
+		return { message: 'Downloading graphic...', type: 'info' }
+	})
 
 	async function handleRivFile(file: File) {
 		if (!file.name.endsWith('.riv')) {
@@ -21,14 +46,9 @@
 			return
 		}
 
-		status = `Uploaded file: ${file.name}`
-		statusType = 'info'
-
 		interpreter = new RiveInterpreter({
 			buffer: await file.arrayBuffer(),
 			onFileLoad: async (triggers) => {
-				status = 'ViewModel properties parsed'
-				statusType = 'success'
 				context.triggers = triggers
 
 				if (!document.startViewTransition) {
@@ -97,7 +117,7 @@
 	</div>
 
 	<footer class="z-20 border-t border-base-300 bg-base-200 lg:col-span-2">
-		<StatusBar type={statusType}>{status}</StatusBar>
+		<StatusBar type={status.type}>{status.message}</StatusBar>
 	</footer>
 </div>
 

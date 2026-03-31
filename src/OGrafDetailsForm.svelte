@@ -13,8 +13,6 @@
 	let { interpreter }: Props = $props()
 
 	const context = getAppContext()
-	let status = $state('No file uploaded')
-	let statusType = $state<'error' | 'success' | 'warn' | 'info'>('error')
 	let manifest: GraphicsManifest | undefined = $state()
 
 	const previewOGraf = async (formData: FormData) => {
@@ -73,12 +71,8 @@
 
 			manifest = await interpreter.createManifest(context.triggerMap, metadata)
 			await interpreter.createOGrafPackage(manifest, context.triggerMap)
-			status = 'OGraf package created! Download initiated.'
-			statusType = 'success'
 		} catch (e) {
 			console.error('Error creating OGraf package:', e)
-			status = 'Failed to create OGraf package'
-			statusType = 'error'
 		}
 	}
 </script>
