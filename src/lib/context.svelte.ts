@@ -5,7 +5,7 @@ import type { TriggerMap } from './rive-interpreter'
 export class AppContext {
 	#hasUploadedFile = $state(false)
 	#isPreviewing = $state(false)
-	#hasDownloadedPakcage = $state(false)
+	#hasDownloadedPackage = $state(false)
 	#graphic = $state<HTMLElement & GraphicsAPI.Graphic>()
 	#playActionTrigger = $state('')
 	#stopActionTrigger = $state('')
@@ -33,10 +33,10 @@ export class AppContext {
 	}
 
 	get hasDownloadedPackage() {
-		return this.#hasDownloadedPakcage
+		return this.#hasDownloadedPackage
 	}
 	set hasDownloadedPackage(value: boolean) {
-		this.#hasDownloadedPakcage = value
+		this.#hasDownloadedPackage = value
 	}
 
 	get graphic() {
