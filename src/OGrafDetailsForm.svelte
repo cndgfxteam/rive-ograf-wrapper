@@ -34,10 +34,6 @@
 		})
 
 		context.isPreviewing = true
-		scrollTo({
-			top: 0,
-			behavior: 'smooth',
-		})
 	}
 
 	const createOGraf = async (formData: FormData) => {
