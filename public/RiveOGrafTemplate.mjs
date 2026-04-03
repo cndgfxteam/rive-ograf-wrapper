@@ -3,8 +3,6 @@ class RiveOGrafTemplate extends HTMLElement {
 	#currentStep = 0
 
 	/* === REPLACED VARIABLES === */
-	#width = 500
-	#height = 500
 	#playActionTrigger = '${PLAY_ACTION_TRIGGER}'
 	#stopActionTrigger = '${STOP_ACTION_TRIGGER}'
 	#riveBuffer = new Uint8Array('${RIVE_FILE}')
@@ -13,6 +11,7 @@ class RiveOGrafTemplate extends HTMLElement {
 	#hasRiveScriptLoaded
 	#riveInstance
 	#vmi
+	#resizeHandler
 
 	constructor() {
 		super()
@@ -26,9 +25,16 @@ class RiveOGrafTemplate extends HTMLElement {
 			script.onload = () => resolve(true)
 		})
 		this.shadowRoot?.appendChild(script)
+		this.#resizeHandler = () => {}
 	}
 
 	connectedCallback() {}
+
+	#updateCanvasSize() {
+		this.#canvas.width = this.clientWidth / devicePixelRatio
+		this.#canvas.height = this.clientHeight / devicePixelRatio
+		this.#riveInstance?.resizeDrawingSurfaceToCanvas()
+	}
 
 	async load(params) {
 		if (params.renderType !== 'realtime') {
@@ -43,8 +49,6 @@ class RiveOGrafTemplate extends HTMLElement {
 			}
 
 			return new Promise((resolve) => {
-				this.#canvas.width = this.#width
-				this.#canvas.height = this.#height
 				this.shadowRoot?.appendChild(this.#canvas)
 
 				this.#riveInstance = new window.rive.Rive({
@@ -54,7 +58,12 @@ class RiveOGrafTemplate extends HTMLElement {
 					autoBind: true,
 					stateMachines: 'State Machine 1',
 					onLoad: async () => {
-						this.#riveInstance.resizeDrawingSurfaceToCanvas()
+						this.#updateCanvasSize()
+
+						this.#resizeHandler = () => {
+							this.#updateCanvasSize()
+						}
+						window.addEventListener('resize', this.#resizeHandler)
 
 						if (!this.#riveInstance.viewModelInstance) {
 							return resolve({
@@ -85,12 +94,13 @@ class RiveOGrafTemplate extends HTMLElement {
 			this.#riveInstance.cleanup()
 			this.#vmi = undefined
 			this.#riveInstance = undefined
+			window.removeEventListener('resize', this.#resizeHandler)
 		}
 
 		return { statusCode: 200 }
 	}
 
-	#setInstancePropertyValues(vmi, data) {
+	#setInstancePropertyValues(data, vmi) {
 		for (let key in data) {
 			const type = vmi.properties.find((p) => p.name === key)?.type
 
@@ -117,8 +127,7 @@ class RiveOGrafTemplate extends HTMLElement {
 				case 'list':
 					const items = data[key]
 					const list = vmi.list(key)
-					// TODO: REMOVE THE HARDCODED VM NAME ASAP
-					const vmName = list.instanceAt(0)?.viewModel.name || 'BarVM'
+					const vmName = list.instanceAt(0)?.viewModelName
 
 					if (!this.#riveInstance) {
 						throw new Error('Rive instance not available.')
@@ -146,7 +155,7 @@ class RiveOGrafTemplate extends HTMLElement {
 					// Repopulate the list with the new data
 					items.forEach((item) => {
 						const instance = vm.instance()
-						this.#setInstancePropertyValues(instance, item)
+						this.#setInstancePropertyValues(item, instance)
 						list.addInstance(instance)
 					})
 
@@ -171,7 +180,7 @@ class RiveOGrafTemplate extends HTMLElement {
 				throw new Error('Data must be a non-null object.')
 			}
 
-			this.#setInstancePropertyValues(this.#vmi, params.data)
+			this.#setInstancePropertyValues(params.data, this.#vmi)
 
 			return { statusCode: 200 }
 		} catch (error) {
