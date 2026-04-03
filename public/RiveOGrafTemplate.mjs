@@ -1,257 +1,251 @@
 class RiveOGrafTemplate extends HTMLElement {
-    #canvas
-    #currentStep = 0
+	#canvas
+	#currentStep = 0
 
-    /* === REPLACED VARIABLES === */
-    #width = 500
-    #height = 500
-    #playActionTrigger = '${PLAY_ACTION_TRIGGER}'
-    #stopActionTrigger = '${STOP_ACTION_TRIGGER}'
-    #riveBuffer = new Uint8Array('${RIVE_FILE}')
+	/* === REPLACED VARIABLES === */
+	#playActionTrigger = '${PLAY_ACTION_TRIGGER}'
+	#stopActionTrigger = '${STOP_ACTION_TRIGGER}'
+	#riveBuffer = new Uint8Array('${RIVE_FILE}')
 
-    /* === RIVE-SPECIFIC VARIABLES === */
-    #hasRiveScriptLoaded
-    #riveInstance
-    #vmi
+	/* === RIVE-SPECIFIC VARIABLES === */
+	#hasRiveScriptLoaded
+	#riveInstance
+	#vmi
+	#resizeHandler
 
-    constructor() {
-        super()
-        this.attachShadow({ mode: 'open' })
-        this.#canvas = document.createElement('canvas')
+	constructor() {
+		super()
+		this.attachShadow({ mode: 'open' })
+		this.#canvas = document.createElement('canvas')
 
-        // TODO: Find a way to bundle the Rive runtime with the graphic instead of loading from CDN
-        const script = document.createElement('script')
-        script.src = 'https://unpkg.com/@rive-app/webgl@2.35.0'
-        this.#hasRiveScriptLoaded = new Promise((resolve) => {
-            script.onload = () => resolve(true)
-        })
-        this.shadowRoot?.appendChild(script)
-    }
+		// TODO: Find a way to bundle the Rive runtime with the graphic instead of loading from CDN
+		const script = document.createElement('script')
+		script.src = 'https://unpkg.com/@rive-app/webgl@2.35.0'
+		this.#hasRiveScriptLoaded = new Promise((resolve) => {
+			script.onload = () => resolve(true)
+		})
+		this.shadowRoot?.appendChild(script)
+		this.#resizeHandler = () => {}
+	}
 
-    connectedCallback() {}
+	connectedCallback() {}
 
-    async load(params) {
-        if (params.renderType !== 'realtime') {
-            throw new Error('Non-realtime not supported by this graphic.')
-        }
+	#updateCanvasSize() {
+		this.#canvas.width = this.clientWidth / devicePixelRatio
+		this.#canvas.height = this.clientHeight / devicePixelRatio
+		this.#riveInstance?.resizeDrawingSurfaceToCanvas()
+	}
 
-        try {
-            await this.#hasRiveScriptLoaded
+	async load(params) {
+		if (params.renderType !== 'realtime') {
+			throw new Error('Non-realtime not supported by this graphic.')
+		}
 
-            if (this.#riveInstance) {
-                return this.updateAction({ data: params.data })
-            }
+		try {
+			await this.#hasRiveScriptLoaded
 
-            return new Promise((resolve) => {
-                this.#canvas.width = this.#width
-                this.#canvas.height = this.#height
-                this.shadowRoot?.appendChild(this.#canvas)
+			if (this.#riveInstance) {
+				return this.updateAction({ data: params.data })
+			}
 
-                this.#riveInstance = new window.rive.Rive({
-                    buffer: this.#riveBuffer.buffer,
-                    canvas: this.#canvas,
-                    autoplay: true,
-                    autoBind: true,
-                    stateMachines: 'State Machine 1',
-                    onLoad: async () => {
-                        this.#riveInstance.resizeDrawingSurfaceToCanvas()
+			return new Promise((resolve) => {
+				this.shadowRoot?.appendChild(this.#canvas)
 
-                        if (!this.#riveInstance.viewModelInstance) {
-                            return resolve({
-                                statusCode: 500,
-                            })
-                        }
+				this.#riveInstance = new window.rive.Rive({
+					buffer: this.#riveBuffer.buffer,
+					canvas: this.#canvas,
+					autoplay: true,
+					autoBind: true,
+					stateMachines: 'State Machine 1',
+					onLoad: async () => {
+						this.#updateCanvasSize()
 
-                        this.#vmi = this.#riveInstance.viewModelInstance
-                        console.log(
-                            '%c☑️ Rive loaded.',
-                            'color: #8368cb; font-weight: bold;',
-                        )
+						this.#resizeHandler = () => {
+							this.#updateCanvasSize()
+						}
+						window.addEventListener('resize', this.#resizeHandler)
 
-                        if (params.data) {
-                            return resolve(
-                                this.updateAction({ data: params.data }),
-                            )
-                        }
+						if (!this.#riveInstance.viewModelInstance) {
+							return resolve({
+								statusCode: 500,
+							})
+						}
 
-                        return resolve({ statusCode: 200 })
-                    },
-                })
-            })
-        } catch (e) {
-            console.error('Error during load:', e)
-            return { statusCode: 500 }
-        }
-    }
+						this.#vmi = this.#riveInstance.viewModelInstance
+						console.log('%c☑️ Rive loaded.', 'color: #8368cb; font-weight: bold;')
 
-    async dispose(params) {
-        if (this.#riveInstance) {
-            this.#canvas.remove()
-            this.#riveInstance.cleanup()
-            this.#vmi = undefined
-            this.#riveInstance = undefined
-        }
+						if (params.data) {
+							return resolve(this.updateAction({ data: params.data }))
+						}
 
-        return { statusCode: 200 }
-    }
+						return resolve({ statusCode: 200 })
+					},
+				})
+			})
+		} catch (e) {
+			console.error('Error during load:', e)
+			return { statusCode: 500 }
+		}
+	}
 
-    #setInstancePropertyValues(vmi, data) {
-        for (let key in data) {
-            const type = vmi.properties.find((p) => p.name === key)?.type
+	async dispose(params) {
+		if (this.#riveInstance) {
+			this.#canvas.remove()
+			this.#riveInstance.cleanup()
+			this.#vmi = undefined
+			this.#riveInstance = undefined
+			window.removeEventListener('resize', this.#resizeHandler)
+		}
 
-            if (!type) {
-                throw new Error(`Property ${key} not found in Rive file.`)
-            }
+		return { statusCode: 200 }
+	}
 
-            switch (type) {
-                /* @ts-expect-error - Rive's DataType is bugged */
-                case 'string':
-                    vmi.string(key).value = data[key]
-                    break
-                /* @ts-expect-error - Rive's DataType is bugged */
-                case 'number':
-                    vmi.number(key).value = data[key]
-                    break
-                /* @ts-expect-error - Rive's DataType is bugged */
-                case 'boolean':
-                    vmi.boolean(key).value = data[key]
-                    break
-                /* @ts-expect-error - Rive's DataType is bugged */
-                case 'color':
-                    vmi.color(key).value = data[key]
-                    break
-                /* @ts-expect-error - Rive's DataType is bugged */
-                case 'enum':
-                    vmi.enum(key).value = data[key]
-                    break
-                /* @ts-expect-error - Rive's DataType is bugged */
-                case 'list':
-                    const items = data[key]
-                    const list = vmi.list(key)
-                    // TODO: REMOVE THE HARDCODED VM NAME ASAP
-                    const vmName = list.instanceAt(0)?.viewModel.name || 'BarVM'
+	#setInstancePropertyValues(data, vmi) {
+		for (let key in data) {
+			const type = vmi.properties.find((p) => p.name === key)?.type
 
-                    if (!this.#riveInstance) {
-                        throw new Error('Rive instance not available.')
-                    }
+			if (!type) {
+				throw new Error(`Property ${key} not found in Rive file.`)
+			}
 
-                    if (!Array.isArray(items)) {
-                        throw new Error(
-                            `Expected an array for property ${key}.`,
-                        )
-                    }
+			switch (type) {
+				case 'string':
+					vmi.string(key).value = data[key]
+					break
+				case 'number':
+					vmi.number(key).value = data[key]
+					break
+				case 'boolean':
+					vmi.boolean(key).value = data[key]
+					break
+				case 'color':
+					vmi.color(key).value = data[key]
+					break
+				case 'enumType':
+					vmi.enum(key).value = data[key]
+					break
+				case 'list':
+					const items = data[key]
+					const list = vmi.list(key)
+					const vmName = list.instanceAt(0)?.viewModelName
 
-                    if (!vmName) {
-                        throw new Error(`ViewModel for list ${key} not found.`)
-                    }
+					if (!this.#riveInstance) {
+						throw new Error('Rive instance not available.')
+					}
 
-                    const vm = this.#riveInstance.viewModelByName(vmName)
+					if (!Array.isArray(items)) {
+						throw new Error(`Expected an array for property ${key}.`)
+					}
 
-                    if (!vm) {
-                        throw new Error(`ViewModel for list ${key} not found.`)
-                    }
+					if (!vmName) {
+						throw new Error(`ViewModel for list ${key} not found.`)
+					}
 
-                    // Clear the list
-                    while (list.length > 0) {
-                        list.removeInstanceAt(0)
-                    }
+					const vm = this.#riveInstance.viewModelByName(vmName)
 
-                    // Repopulate the list with the new data
-                    items.forEach((item) => {
-                        const instance = vm.instance()
-                        this.#setInstancePropertyValues(instance, item)
-                        list.addInstance(instance)
-                    })
+					if (!vm) {
+						throw new Error(`ViewModel for list ${key} not found.`)
+					}
 
-                    break
-                default:
-                    throw new Error(
-                        `WIP: Unsupported property type for ${key}.`,
-                    )
-            }
-        }
-    }
+					// Clear the list
+					while (list.length > 0) {
+						list.removeInstanceAt(0)
+					}
 
-    async updateAction(params) {
-        if (!this.#riveInstance) {
-            return { statusCode: 501 }
-        }
+					// Repopulate the list with the new data
+					items.forEach((item) => {
+						const instance = vm.instance()
+						this.#setInstancePropertyValues(item, instance)
+						list.addInstance(instance)
+					})
 
-        try {
-            if (!this.#vmi) {
-                throw new Error('ViewModel instance not available.')
-            }
+					break
+				default:
+					throw new Error(`WIP: Unsupported property type for ${key}.`)
+			}
+		}
+	}
 
-            if (typeof params.data !== 'object' || params.data === null) {
-                throw new Error('Data must be a non-null object.')
-            }
+	async updateAction(params) {
+		if (!this.#riveInstance) {
+			return { statusCode: 501 }
+		}
 
-            this.#setInstancePropertyValues(this.#vmi, params.data)
+		try {
+			if (!this.#vmi) {
+				throw new Error('ViewModel instance not available.')
+			}
 
-            return { statusCode: 200 }
-        } catch (error) {
-            console.error('Update action failed:', error)
-            return { statusCode: 500 }
-        }
-    }
+			if (typeof params.data !== 'object' || params.data === null) {
+				throw new Error('Data must be a non-null object.')
+			}
 
-    async playAction(params) {
-        if (!this.#riveInstance) {
-            return {
-                statusCode: 501,
-                currentStep: this.#currentStep,
-            }
-        }
+			this.#setInstancePropertyValues(params.data, this.#vmi)
 
-        this.#currentStep += params.delta ?? 1
+			return { statusCode: 200 }
+		} catch (error) {
+			console.error('Update action failed:', error)
+			return { statusCode: 500 }
+		}
+	}
 
-        if (!this.#vmi) {
-            throw new Error('ViewModel instance not available.')
-        }
+	async playAction(params) {
+		if (!this.#riveInstance) {
+			return {
+				statusCode: 501,
+				currentStep: this.#currentStep,
+			}
+		}
 
-        // TODO: validate triggers exist in constructor?
-        this.#vmi.trigger(this.#playActionTrigger)?.trigger()
+		this.#currentStep += params.delta ?? 1
 
-        return { statusCode: 200, currentStep: this.#currentStep }
-    }
+		if (!this.#vmi) {
+			throw new Error('ViewModel instance not available.')
+		}
 
-    async stopAction(params) {
-        if (!this.#riveInstance) {
-            return { statusCode: 200 }
-        }
+		// TODO: validate triggers exist in constructor?
+		this.#vmi.trigger(this.#playActionTrigger)?.trigger()
 
-        if (!this.#vmi) {
-            throw new Error('ViewModel instance not available.')
-        }
+		return { statusCode: 200, currentStep: this.#currentStep }
+	}
 
-        this.#vmi.trigger(this.#stopActionTrigger)?.trigger()
+	async stopAction(params) {
+		if (!this.#riveInstance) {
+			return { statusCode: 200 }
+		}
 
-        return { statusCode: 200 }
-    }
+		if (!this.#vmi) {
+			throw new Error('ViewModel instance not available.')
+		}
 
-    async customAction({ id }) {
-        if (!this.#riveInstance) {
-            return { statusCode: 501 }
-        }
+		this.#vmi.trigger(this.#stopActionTrigger)?.trigger()
 
-        if (!this.#vmi) {
-            throw new Error('ViewModel instance not available.')
-        }
+		return { statusCode: 200 }
+	}
 
-        this.#vmi.trigger(id)?.trigger()
+	async customAction({ id }) {
+		if (!this.#riveInstance) {
+			return { statusCode: 501 }
+		}
 
-        return { statusCode: 200 }
-    }
+		if (!this.#vmi) {
+			throw new Error('ViewModel instance not available.')
+		}
 
-    async goToTime(_payload) {
-        throw new Error('Non-realtime not supported by this graphic.')
-        return { statusCode: 400 }
-    }
+		this.#vmi.trigger(id)?.trigger()
 
-    async setActionsSchedule(_payload) {
-        throw new Error('Non-realtime not supported by this graphic.')
-        return { statusCode: 400 }
-    }
+		return { statusCode: 200 }
+	}
+
+	async goToTime(_payload) {
+		throw new Error('Non-realtime not supported by this graphic.')
+		return { statusCode: 400 }
+	}
+
+	async setActionsSchedule(_payload) {
+		throw new Error('Non-realtime not supported by this graphic.')
+		return { statusCode: 400 }
+	}
 }
 
 export default RiveOGrafTemplate
