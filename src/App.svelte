@@ -47,7 +47,8 @@
 
 		interpreter = new RiveInterpreter({
 			buffer: await file.arrayBuffer(),
-			onFileLoad: async (triggers) => {
+			onFileLoad: async (riveInstance, triggers) => {
+				context.riveInstance = riveInstance
 				context.triggers = triggers
 
 				if (!document.startViewTransition) {
@@ -66,7 +67,7 @@
 <svelte:window bind:innerWidth />
 
 <div
-	class="grid h-screen grid-cols-1 grid-rows-[auto_minmax(290px,1fr)_auto_3fr_auto] lg:grid-cols-[minmax(300px,1fr)_2fr] lg:grid-rows-[auto_minmax(0,2fr)_1fr_auto]"
+	class="grid h-screen grid-cols-1 grid-rows-[auto_minmax(290px,1fr)_auto_minmax(0,3fr)_auto] lg:grid-cols-[minmax(300px,1fr)_2fr] lg:grid-rows-[auto_minmax(0,3fr)_minmax(0,2fr)_auto]"
 >
 	<header
 		class="z-20 col-span-full flex items-center gap-4 bg-base-300 px-2 shadow"
@@ -99,7 +100,7 @@
 
 	<!-- Preview controls -->
 	<div
-		class="col-start-1 row-start-3 bg-base-100 lg:col-start-2"
+		class="col-start-1 row-start-3 max-h-full bg-base-100 lg:col-start-2"
 		style="view-transition-name: controls;"
 	>
 		<GraphicPreviewControls open={innerWidth > 1024} />

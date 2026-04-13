@@ -1,6 +1,6 @@
-import { DataType, Rive, type RiveFile, type ViewModelInstance } from '@rive-app/webgl2'
+import { Rive, type RiveFile, type ViewModelInstance } from '@rive-app/webgl2'
 import { GraphicsAPI, type ReturnPayload } from 'ograf'
-import type { TriggerMap } from './rive-interpreter'
+import { setInstancePropertyValues, type TriggerMap } from './rive-interpreter'
 
 class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
 	#canvas: HTMLCanvasElement
@@ -96,73 +96,6 @@ class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
 		return { statusCode: 200 }
 	}
 
-	#setInstancePropertyValues(vmi: ViewModelInstance, data: Record<string, unknown>) {
-		for (let key in data) {
-			const type = vmi.properties.find((p) => p.name === key)?.type
-
-			if (!type) {
-				throw new Error(`Property ${key} not found in Rive file.`)
-			}
-
-			switch (type) {
-				case DataType.string:
-					vmi.string(key)!.value = data[key] as string
-					break
-				case DataType.number:
-					vmi.number(key)!.value = data[key] as number
-					break
-				case DataType.boolean:
-					vmi.boolean(key)!.value = data[key] as boolean
-					break
-				case DataType.color:
-					vmi.color(key)!.value = data[key] as number
-					break
-				case DataType.enumType:
-					vmi.enum(key)!.value = data[key] as string
-					break
-				case DataType.list:
-					const items = data[key] as Record<string, unknown>[]
-					const list = vmi.list(key)!
-					// TODO: REMOVE THE HARDCODED VM NAME ASAP
-					const vmName = list.instanceAt(0)?.viewModel.name || 'BarVM'
-
-					if (!this.#riveInstance) {
-						throw new Error('Rive instance not available.')
-					}
-
-					if (!Array.isArray(items)) {
-						throw new Error(`Expected an array for property ${key}.`)
-					}
-
-					if (!vmName) {
-						throw new Error(`ViewModel for list ${key} not found.`)
-					}
-
-					const vm = this.#riveInstance.viewModelByName(vmName)
-
-					if (!vm) {
-						throw new Error(`ViewModel for list ${key} not found.`)
-					}
-
-					// Clear the list
-					while (list.length > 0) {
-						list.removeInstanceAt(0)
-					}
-
-					// Repopulate the list with the new data
-					items.forEach((item) => {
-						const instance = vm.instance()
-						this.#setInstancePropertyValues(instance, item)
-						list.addInstance(instance)
-					})
-
-					break
-				default:
-					throw new Error(`WIP: Unsupported property type for ${key}.`)
-			}
-		}
-	}
-
 	async updateAction(
 		params: Parameters<GraphicsAPI.Graphic['updateAction']>[0]
 	): ReturnType<GraphicsAPI.Graphic['updateAction']> {
@@ -180,7 +113,7 @@ class RiveOGrafTemplate extends HTMLElement implements GraphicsAPI.Graphic {
 			}
 
 			const data = params.data as Record<string, unknown>
-			this.#setInstancePropertyValues(this.#vmi, data)
+			setInstancePropertyValues(data, this.#vmi, this.#riveInstance)
 
 			return { statusCode: 200 }
 		} catch (error) {

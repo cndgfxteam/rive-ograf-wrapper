@@ -1,3 +1,4 @@
+import type { Rive } from '@rive-app/webgl2'
 import { GraphicsAPI } from 'ograf'
 import { createContext } from 'svelte'
 import type { TriggerMap } from './rive-interpreter'
@@ -17,6 +18,7 @@ export class AppContext {
 			(t) => t !== this.#playActionTrigger && t !== this.#stopActionTrigger
 		),
 	})
+	#riveInstance?: Rive = $state()
 
 	get hasUploadedFile() {
 		return this.#hasUploadedFile
@@ -69,6 +71,13 @@ export class AppContext {
 
 	get triggerMap() {
 		return this.#triggerMap
+	}
+
+	get riveInstance() {
+		return this.#riveInstance
+	}
+	set riveInstance(value: Rive | undefined) {
+		this.#riveInstance = value
 	}
 
 	constructor() {}

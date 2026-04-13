@@ -8,7 +8,7 @@ type RiveInterpreterOptions = (
 	| { src: string; buffer?: never }
 	| { src?: never; buffer: ArrayBuffer }
 ) & {
-	onFileLoad?: (triggers: string[]) => void
+	onFileLoad?: (riveInstance: Rive, triggers: string[]) => void
 }
 
 export interface TriggerMap {
@@ -17,13 +17,118 @@ export interface TriggerMap {
 	customActions: string[]
 }
 
+export function getInstancePropertyValue(prop: ViewModelProperty, vmi: ViewModelInstance): unknown {
+	switch (prop.type) {
+		case DataType.boolean:
+			return vmi.boolean(prop.name)!.value
+		case DataType.string:
+			return vmi.string(prop.name)!.value
+		case DataType.number:
+			return vmi.number(prop.name)!.value
+		case DataType.color:
+			return vmi.color(prop.name)!.value
+		case DataType.enumType:
+			return vmi.enum(prop.name)!.value
+		case DataType.list:
+			const list = vmi.list(prop.name)!
+			const listCount = list.length
+			const instances = Array.from(
+				{ length: listCount },
+				(_, i) => vmi.list(prop.name)!.instanceAt(i)!
+			)
+			return instances.map((instance) => {
+				const instanceProps = instance.properties
+				return instanceProps.reduce(
+					(obj, instanceProp) => {
+						obj[instanceProp.name] = getInstancePropertyValue(instanceProp, instance)
+						return obj
+					},
+					{} as Record<string, unknown>
+				)
+			})
+		default:
+			// Includes triggers since they have no value
+			return undefined
+	}
+}
+
+export function setInstancePropertyValues(
+	data: Record<string, unknown>,
+	vmi: ViewModelInstance,
+	riveInstance: Rive
+) {
+	for (let key in data) {
+		const type = vmi.properties.find((p) => p.name === key)?.type
+
+		if (!type) {
+			throw new Error(`Property ${key} not found in Rive file.`)
+		}
+
+		switch (type) {
+			case DataType.string:
+				vmi.string(key)!.value = data[key] as string
+				break
+			case DataType.number:
+				vmi.number(key)!.value = data[key] as number
+				break
+			case DataType.boolean:
+				vmi.boolean(key)!.value = data[key] as boolean
+				break
+			case DataType.color:
+				vmi.color(key)!.value = data[key] as number
+				break
+			case DataType.enumType:
+				vmi.enum(key)!.value = data[key] as string
+				break
+			case DataType.list:
+				const items = data[key] as Record<string, unknown>[]
+				const list = vmi.list(key)!
+				const vmName = list.instanceAt(0)?.viewModelName
+
+				if (!riveInstance) {
+					throw new Error('Rive instance not available.')
+				}
+
+				if (!Array.isArray(items)) {
+					throw new Error(`Expected an array for property ${key}.`)
+				}
+
+				if (!vmName) {
+					throw new Error(`ViewModel for list ${key} not found.`)
+				}
+
+				const vm = riveInstance.viewModelByName(vmName)
+
+				if (!vm) {
+					throw new Error(`ViewModel for list ${key} not found.`)
+				}
+
+				// Clear the list
+				while (list.length > 0) {
+					list.removeInstanceAt(0)
+				}
+
+				// Repopulate the list with the new data
+				items.forEach((item) => {
+					const instance = vm.instance()
+					setInstancePropertyValues(item, instance, riveInstance)
+					list.addInstance(instance)
+				})
+
+				break
+			default:
+				throw new Error(`WIP: Unsupported property type for ${key}.`)
+		}
+	}
+}
+
 export default class RiveInterpreter {
 	#buffer: ArrayBuffer
 	#canvas: OffscreenCanvas
 	#riveFile?: RiveFile
 	#riveInstance?: Rive
 	#isInstanceLoaded: boolean = false
-	#onFileLoad?: (triggers: string[]) => void
+	#onFileLoad?: (riveInstance: Rive, triggers: string[]) => void
 	#artboardHeight: number = 0
 	#artboardWidth: number = 0
 
@@ -58,6 +163,7 @@ export default class RiveInterpreter {
 						this.#artboardHeight = this.#riveInstance!.artboardHeight ?? 0
 						this.#artboardWidth = this.#riveInstance!.artboardWidth ?? 0
 						this.#onFileLoad?.(
+							this.#riveInstance!,
 							this.#riveInstance!.viewModelInstance?.properties.filter(
 								(prop) => prop.type === DataType.trigger
 							).map((prop) => prop.name) ?? []
@@ -76,45 +182,6 @@ export default class RiveInterpreter {
 		} catch (e) {
 			console.error(e)
 			return
-		}
-	}
-
-	#getInstancePropertyValue(prop: ViewModelProperty, vmi: ViewModelInstance): unknown {
-		if (!this.#riveInstance) {
-			throw new Error('Rive instance not initialized yet.')
-		}
-
-		switch (prop.type) {
-			case DataType.boolean:
-				return vmi.boolean(prop.name)!.value
-			case DataType.string:
-				return vmi.string(prop.name)!.value
-			case DataType.number:
-				return vmi.number(prop.name)!.value
-			case DataType.color:
-				return vmi.color(prop.name)!.value
-			case DataType.enumType:
-				return vmi.enum(prop.name)!.value
-			case DataType.list:
-				const list = vmi.list(prop.name)!
-				const listCount = list.length
-				const instances = Array.from(
-					{ length: listCount },
-					(_, i) => vmi.list(prop.name)!.instanceAt(i)!
-				)
-				return instances.map((instance) => {
-					const instanceProps = instance.properties
-					return instanceProps.reduce(
-						(obj, instanceProp) => {
-							obj[instanceProp.name] = this.#getInstancePropertyValue(instanceProp, instance)
-							return obj
-						},
-						{} as Record<string, unknown>
-					)
-				})
-			default:
-				// Includes triggers since they have no value
-				return undefined
 		}
 	}
 
@@ -145,7 +212,7 @@ export default class RiveInterpreter {
 						// which is not enforced by Rive but should be true for our use cases
 						vmi.list(prop.name)!.instanceAt(0)!
 					),
-					default: this.#getInstancePropertyValue(prop, vmi),
+					default: getInstancePropertyValue(prop, vmi),
 				}
 
 				return
@@ -155,7 +222,7 @@ export default class RiveInterpreter {
 				type: prop.type,
 				title: prop.name,
 				description: `Auto-generated property for ${prop.name}`,
-				default: this.#getInstancePropertyValue(prop, vmi),
+				default: getInstancePropertyValue(prop, vmi),
 			}
 		})
 
