@@ -20,7 +20,7 @@ class RiveOGrafTemplate extends HTMLElement {
 
 		// TODO: Find a way to bundle the Rive runtime with the graphic instead of loading from CDN
 		const script = document.createElement('script')
-		script.src = 'https://unpkg.com/@rive-app/webgl@2.35.0'
+		script.src = 'https://unpkg.com/@rive-app/webgl@2.36.0'
 		this.#hasRiveScriptLoaded = new Promise((resolve) => {
 			script.onload = () => resolve(true)
 		})
@@ -28,7 +28,10 @@ class RiveOGrafTemplate extends HTMLElement {
 		this.#resizeHandler = () => {}
 	}
 
-	connectedCallback() {}
+	connectedCallback() {
+		this.style.width = '100%'
+		this.style.height = '100%'
+	}
 
 	#updateCanvasSize() {
 		this.#canvas.width = this.clientWidth / devicePixelRatio

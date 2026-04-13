@@ -12,8 +12,8 @@ importers:
   .:
     dependencies:
       '@rive-app/webgl2':
-        specifier: ^2.35.4
-        version: 2.35.4
+        specifier: ^2.36.0
+        version: 2.36.0
       jszip:
         specifier: ^3.10.1
         version: 3.10.1
@@ -254,8 +254,8 @@ packages:
   '@oxc-project/types@0.97.0':
     resolution: {integrity: sha512-lxmZK4xFrdvU0yZiDwgVQTCvh2gHWBJCBk5ALsrtsBWhs0uDIi+FTOnXRQeQfs304imdvTdaakT/lqwQ8hkOXQ==}
 
-  '@rive-app/webgl2@2.35.4':
-    resolution: {integrity: sha512-1dX1axIC6WgrvCkBsH1tjHjPz3xXGoDUuu3CZMdnlCOtGmASq4WM7LOPvuggmLgGl5mLHX9VF7Nr/AakpcMeUw==}
+  '@rive-app/webgl2@2.36.0':
+    resolution: {integrity: sha512-m33jt23e9fq5lnUuhGSp0fhj566snSeaXCMX985XG3xDQ64F4vRoZF+dZG3dXQZMzoP8hxqnxncE/KcsqZAV8g==}
 
   '@rolldown/binding-android-arm64@1.0.0-beta.50':
     resolution: {integrity: sha512-XlEkrOIHLyGT3avOgzfTFSjG+f+dZMw+/qd+Y3HLN86wlndrB/gSimrJCk4gOhr1XtRtEKfszpadI3Md4Z4/Ag==}
@@ -1123,7 +1123,7 @@ snapshots:
 
   '@oxc-project/types@0.97.0': {}
 
-  '@rive-app/webgl2@2.35.4': {}
+  '@rive-app/webgl2@2.36.0': {}
 
   '@rolldown/binding-android-arm64@1.0.0-beta.50':
     optional: true
